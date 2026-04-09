@@ -74,35 +74,35 @@
                         </div>
                         <div class="form-group">
                             <label for="emailInput">Email ID</label>
-                            <input type="email" id="emailInput" required>
+                            <input type="email" id="emailInput" disabled>
                         </div>
                         <div class="form-group">
                             <label for="firstNameInput">First Name</label>
-                            <input type="text" id="firstNameInput" required>
+                            <input type="text" id="firstNameInput" disabled>
                         </div>
                         <div class="form-group">
                             <label for="lastNameInput">Last Name</label>
-                            <input type="text" id="lastNameInput">
+                            <input type="text" id="lastNameInput" disabled>
                         </div>
                         <div class="form-group">
                             <label for="departmentInput">Department</label>
-                            <input type="text" id="departmentInput" required>
+                            <input type="text" id="departmentInput" disabled>
                         </div>
                         <div class="form-group">
                             <label for="designationInput">Designation</label>
-                            <input type="text" id="designationInput" required>
+                            <input type="text" id="designationInput" disabled>
                         </div>
                         <div class="form-group">
-                            <label for="reportingInput">Reporting To</label>
-                            <input type="text" id="reportingInput" required>
+                            <label for="reportingEmployeeIdInput">Reporting Authority Employee ID</label>
+                            <input type="text" id="reportingEmployeeIdInput" disabled>
                         </div>
                         <div class="form-group">
                             <label for="locationInput">Location</label>
-                            <input type="text" id="locationInput" required>
+                            <input type="text" id="locationInput" disabled>
                         </div>
                         <div class="form-group">
                             <label for="joiningInput">Date of Joining</label>
-                            <input type="text" id="joiningInput" required>
+                            <input type="text" id="joiningInput" disabled>
                         </div>
                         <div class="form-group">
                             <label for="phoneInput">Phone Number</label>
@@ -174,66 +174,109 @@
             };
         }
 
-        function loadEditProfile() {
-            const stored = localStorage.getItem('profileData');
-            const profile = stored ? JSON.parse(stored) : getProfileDefaults();
-            localStorage.setItem('profileData', JSON.stringify(profile));
-
-            document.getElementById('employeeIdInput').value = profile.employeeId;
-            document.getElementById('emailInput').value = profile.emailId;
-            document.getElementById('firstNameInput').value = profile.firstName;
-            document.getElementById('lastNameInput').value = profile.lastName;
-            document.getElementById('departmentInput').value = profile.department;
-            document.getElementById('designationInput').value = profile.designation;
-            document.getElementById('reportingInput').value = profile.reporting;
-            document.getElementById('locationInput').value = profile.location;
-            document.getElementById('joiningInput').value = profile.joining;
-            document.getElementById('phoneInput').value = profile.phoneNumber;
-            document.getElementById('nationalityInput').value = profile.nationality;
-            document.getElementById('bloodGroupInput').value = profile.bloodGroup;
-            document.getElementById('maritalStatusInput').value = profile.maritalStatus;
-            document.getElementById('dobInput').value = profile.dob;
-            document.getElementById('personalEmailInput').value = profile.personalEmail;
-            document.getElementById('genderInput').value = profile.gender;
-            document.getElementById('addressInput').value = profile.address;
-        }
-
-        function cancelEdit() {
-            window.location.href = 'employee-details.html';
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!localStorage.getItem('loggedInUser')) {
+        async function loadEditProfile() {
+            const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser')) || {};
+            if (!loggedInUser.username) {
                 window.location.href = 'index.html';
                 return;
             }
-            loadEditProfile();
+
+            const response = await fetch(`/api/users/${encodeURIComponent(loggedInUser.username)}`, {
+                headers: getAuthHeaders()
+            });
+            if (!response.ok) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const profile = await response.json();
+            document.getElementById('employeeIdInput').value = profile.employeeId || profile.username || '';
+            document.getElementById('emailInput').value = profile.emailId || '';
+            document.getElementById('firstNameInput').value = profile.firstName || '';
+            document.getElementById('lastNameInput').value = profile.lastName || '';
+            document.getElementById('departmentInput').value = profile.department || '';
+            document.getElementById('designationInput').value = profile.designation || '';
+            document.getElementById('reportingEmployeeIdInput').value = profile.reportingEmployeeId || '';
+            document.getElementById('locationInput').value = profile.location || '';
+            document.getElementById('joiningInput').value = profile.joining || '';
+            document.getElementById('phoneInput').value = profile.phoneNumber || '';
+            document.getElementById('nationalityInput').value = profile.nationality || '';
+            document.getElementById('bloodGroupInput').value = profile.bloodGroup || '';
+            document.getElementById('maritalStatusInput').value = profile.maritalStatus || '';
+            document.getElementById('dobInput').value = profile.dob || '';
+            document.getElementById('personalEmailInput').value = profile.personalEmail || '';
+            document.getElementById('genderInput').value = profile.gender || '';
+            document.getElementById('addressInput').value = profile.address || '';
+        }
+
+        function cancelEdit() {
+            const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser')) || {};
+            if (loggedInUser.role && loggedInUser.role.toLowerCase() === 'admin') {
+                window.location.href = 'admin-dashboard.html';
+            } else {
+                window.location.href = 'dashboard.html';
+            }
+        }
+
+        async function updateProfile(username) {
+            const profile = {
+                phoneNumber: document.getElementById('phoneInput').value,
+                nationality: document.getElementById('nationalityInput').value,
+                bloodGroup: document.getElementById('bloodGroupInput').value,
+                maritalStatus: document.getElementById('maritalStatusInput').value,
+                dob: document.getElementById('dobInput').value,
+                personalEmail: document.getElementById('personalEmailInput').value,
+                gender: document.getElementById('genderInput').value,
+                address: document.getElementById('addressInput').value
+            };
+
+            const response = await fetch(`/api/users/${encodeURIComponent(username)}`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(profile)
+            });
+
+            if (response.ok) {
+                const updatedProfile = await response.json();
+                localStorage.setItem('loggedInUser', JSON.stringify(updatedProfile));
+                if (updatedProfile.role && updatedProfile.role.toLowerCase() === 'admin') {
+                    window.location.href = 'admin-dashboard.html';
+                } else {
+                    window.location.href = 'dashboard.html';
+                }
+            } else {
+                const message = await response.text();
+                alert(message || 'Unable to save profile.');
+            }
+        }
+
+        function getAuthHeaders() {
+            const user = JSON.parse(localStorage.getItem('loggedInUser')) || {};
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (user.token) {
+                headers['Authorization'] = `Bearer ${user.token}`;
+            }
+            return headers;
+        }
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser')) || {};
+            if (!loggedInUser.username) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const fullName = `${loggedInUser.firstName || ''} ${loggedInUser.lastName || ''}`.trim() || 'Employee';
+            document.querySelector('.user-name').textContent = fullName;
+
+            await loadEditProfile(loggedInUser.username);
 
             const editProfileForm = document.getElementById('editProfileForm');
-            editProfileForm.addEventListener('submit', function(e) {
+            editProfileForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                const profile = {
-                    employeeId: document.getElementById('employeeIdInput').value,
-                    emailId: document.getElementById('emailInput').value,
-                    firstName: document.getElementById('firstNameInput').value,
-                    lastName: document.getElementById('lastNameInput').value || '—',
-                    department: document.getElementById('departmentInput').value,
-                    designation: document.getElementById('designationInput').value,
-                    reporting: document.getElementById('reportingInput').value,
-                    location: document.getElementById('locationInput').value,
-                    joining: document.getElementById('joiningInput').value,
-                    phoneNumber: document.getElementById('phoneInput').value,
-                    nationality: document.getElementById('nationalityInput').value,
-                    bloodGroup: document.getElementById('bloodGroupInput').value,
-                    maritalStatus: document.getElementById('maritalStatusInput').value,
-                    dob: document.getElementById('dobInput').value,
-                    personalEmail: document.getElementById('personalEmailInput').value,
-                    gender: document.getElementById('genderInput').value,
-                    address: document.getElementById('addressInput').value
-                };
-
-                localStorage.setItem('profileData', JSON.stringify(profile));
-                window.location.href = 'employee-details.html';
+                await updateProfile(loggedInUser.username);
             });
         });
     </script>

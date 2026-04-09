@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Details - LeavePal</title>
+    <link rel="stylesheet" href="dashboard-styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <svg width="50" height="50" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="4" width="32" height="32" rx="4" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <path d="M12 20L17 25L28 13" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="logo-text">LeavePal</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" id="dashboardLink" class="nav-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="employee-details.html" class="nav-item active">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    Employee Details
+                </a>
+                <a href="leave-tracker.html" id="leaveTrackerLink" class="nav-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span id="leaveTrackerText">Employee Leave Data</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="header">
+                <div class="header-left">
+                    <h2>Employee Details</h2>
+                </div>
+                <div class="header-right">
+                    <div class="user-profile">
+                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23D4AF37'/%3E%3Ccircle cx='50' cy='35' r='20' fill='%23000'/%3E%3Cpath d='M20 90 Q20 70 50 70 Q80 70 80 90' fill='%23000'/%3E%3C/svg%3E" alt="Profile" class="profile-img">
+                        <span class="user-name">Employee</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="employeeProfileSection" class="dashboard-content" style="display:none;">
+                <div class="page-header-row">
+                    <div>
+                        <h1 class="page-heading">My Profile</h1>
+                        <p class="page-subtitle">Review your personal details and update them when needed.</p>
+                    </div>
+                    <button class="primary-btn" onclick="window.location.href='edit-profile.html'">Edit Details</button>
+                </div>
+
+                <div class="table-card" style="padding: 24px;">
+                    <div class="info-row">
+                        <div class="info-item">
+                            <span class="info-label">FULL NAME</span>
+                            <span class="info-value" id="profileName">Ronaldo</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">EMPLOYEE ID</span>
+                            <span class="info-value" id="profileEmployeeId">TR-505</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-item">
+                            <span class="info-label">EMAIL</span>
+                            <span class="info-value" id="profileEmail">ronaldo@leavepal.com</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">PHONE</span>
+                            <span class="info-value" id="profilePhone">+91 98765 43210</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-item">
+                            <span class="info-label">DESIGNATION</span>
+                            <span class="info-value" id="profileDesignation">Intern</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">DEPARTMENT</span>
+                            <span class="info-value" id="profileDepartment">Banking</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-item">
+                            <span class="info-label">REPORTING TO</span>
+                            <span class="info-value" id="profileReporting">Ramesh Kumar</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">LOCATION</span>
+                            <span class="info-value" id="profileLocation">Chennai</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-item">
+                            <span class="info-label">DATE OF JOINING</span>
+                            <span class="info-value" id="profileJoining">01-Jan-2024</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">MARITAL STATUS</span>
+                            <span class="info-value" id="profileMaritalStatus">Unmarried</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-item">
+                            <span class="info-label">PERSONAL EMAIL</span>
+                            <span class="info-value" id="profilePersonalEmail">ronaldo.personal@email.com</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">BLOOD GROUP</span>
+                            <span class="info-value" id="profileBloodGroup">O +ve</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-item">
+                            <span class="info-label">GENDER</span>
+                            <span class="info-value" id="profileGender">Male</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">DATE OF BIRTH</span>
+                            <span class="info-value" id="profileDob">15-May-2001</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-item full-width">
+                            <span class="info-label">ADDRESS</span>
+                            <span class="info-value" id="profileAddress">No. 12, Golden Street, Adyar, Chennai - 600020</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="adminEmployeeSection" class="dashboard-content">
+                <div class="page-header-row">
+                    <div>
+                        <h1 class="page-heading">Employee Records</h1>
+                        <p class="page-subtitle">Manage and view detailed records of all active employees.</p>
+                    </div>
+                    <button class="primary-btn" onclick="window.location.href='add-employee.html'">+ ADD EMPLOYEE</button>
+                </div>
+
+                <div class="summary-card small-card">
+                    <span>TOTAL STAFF</span>
+                    <strong id="totalStaff">0</strong>
+                    <span class="metric-note">+12%</span>
+                </div>
+
+                <div class="table-card">
+                    <table class="employee-table">
+                        <thead>
+                            <tr>
+                                <th>EMPLOYEE ID</th>
+                                <th>FULL NAME</th>
+                                <th>DESIGNATION</th>
+                                <th>DEPARTMENT</th>
+                                <th>EMAIL</th>
+                                <th>ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeeTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            const user = JSON.parse(localStorage.getItem('loggedInUser')) || { role: 'guest' };
+            if (!user || !user.role || user.role === 'guest') {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const dashboardLink = document.getElementById('dashboardLink');
+            const leaveTrackerText = document.getElementById('leaveTrackerText');
+            if (user.role.toLowerCase() === 'admin') {
+                dashboardLink.href = 'admin-dashboard.html';
+                leaveTrackerText.textContent = 'Employee Leave Data';
+            } else {
+                dashboardLink.href = 'dashboard.html';
+                leaveTrackerText.textContent = 'Leave Tracker';
+            }
+
+            if (user.role === 'admin') {
+                document.getElementById('employeeProfileSection').style.display = 'none';
+                document.getElementById('adminEmployeeSection').style.display = 'block';
+                loadEmployees();
+                return;
+            }
+
+            document.getElementById('adminEmployeeSection').style.display = 'none';
+            document.getElementById('employeeProfileSection').style.display = 'block';
+            await loadEmployeeProfile(user.username);
+        });
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        function getAuthHeaders() {
+            const user = JSON.parse(localStorage.getItem('loggedInUser')) || {};
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (user.token) {
+                headers['Authorization'] = `Bearer ${user.token}`;
+            }
+            return headers;
+        }
+
+        async function loadEmployeeProfile(username) {
+            try {
+                const response = await fetch(`/api/users/${encodeURIComponent(username)}`, {
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                const profile = await response.json();
+                const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Employee';
+                document.querySelector('.user-name').textContent = fullName;
+                document.getElementById('profileName').textContent = fullName;
+                document.getElementById('profileEmployeeId').textContent = profile.username;
+                document.getElementById('profileEmail').textContent = profile.emailId || '';
+                document.getElementById('profilePhone').textContent = profile.phoneNumber || '';
+                document.getElementById('profileDesignation').textContent = profile.designation || '';
+                document.getElementById('profileDepartment').textContent = profile.department || '';
+                document.getElementById('profileReporting').textContent = profile.reporting || '';
+                document.getElementById('profileLocation').textContent = profile.location || '';
+                document.getElementById('profileJoining').textContent = profile.joining || '';
+                document.getElementById('profileMaritalStatus').textContent = profile.maritalStatus || '';
+                document.getElementById('profilePersonalEmail').textContent = profile.personalEmail || '';
+                document.getElementById('profileBloodGroup').textContent = profile.bloodGroup || '';
+                document.getElementById('profileGender').textContent = profile.gender || '';
+                document.getElementById('profileDob').textContent = profile.dob || '';
+                document.getElementById('profileAddress').textContent = profile.address || '';
+            } catch (error) {
+                console.error(error);
+                window.location.href = 'index.html';
+            }
+        }
+
+        function loadEmployees() {
+            // Fetch employees from API
+            fetch('/api/users', {
+                headers: getAuthHeaders()
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // Filter for employees only
+                    const employees = data.filter(user => user.role === 'employee');
+
+                    const tbody = document.getElementById('employeeTableBody');
+                    tbody.innerHTML = employees.map(user => ({
+                        id: user.username || 'N/A', // Use username as ID
+                        initials: (user.firstName ? user.firstName.charAt(0).toUpperCase() : 'E') + (user.lastName ? user.lastName.charAt(0).toUpperCase() : ''),
+                        name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                        designation: user.designation || '—',
+                        department: user.department || '—',
+                        email: user.emailId || '—'
+                    })).map(emp => `
+                        <tr>
+                            <td>${emp.id}</td>
+                            <td><span class="avatar-badge">${emp.initials}</span>${emp.name}</td>
+                            <td>${emp.designation}</td>
+                            <td>${emp.department}</td>
+                            <td>${emp.email}</td>
+                            <td><button class="secondary-btn" onclick="viewProfile('${emp.id}')">VIEW PROFILE</button></td>
+                        </tr>
+                    `).join('');
+
+                    document.getElementById('totalStaff').textContent = employees.length;
+                })
+                .catch(error => {
+                    console.error('Error fetching employees:', error);
+                    const tbody = document.getElementById('employeeTableBody');
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">Unable to load employee data from the server.</td></tr>';
+                    document.getElementById('totalStaff').textContent = '0';
+                });
+        }
+
+        function viewProfile(employeeId) {
+            alert('Open profile for ' + employeeId);
+        }
+    </script>
+</body>
+</html>

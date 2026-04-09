@@ -86,36 +86,36 @@
                             <div class="info-row">
                                 <div class="info-item">
                                     <span class="info-label">FULL NAME</span>
-                                    <span class="info-value">Ronaldo</span>
+                                    <span class="info-value" id="profileFullNameValue">Ronaldo</span>
                                 </div>
                                 <div class="info-item">
                                     <span class="info-label">EMPLOYEE ID</span>
-                                    <span class="info-value">TR-505</span>
+                                    <span class="info-value" id="profileEmployeeIdValue">TR-505</span>
                                 </div>
                             </div>
 
                             <div class="info-row">
                                 <div class="info-item">
                                     <span class="info-label">DESIGNATION</span>
-                                    <span class="info-value">Intern</span>
+                                    <span class="info-value" id="profileDesignationValue">Intern</span>
                                 </div>
                                 <div class="info-item">
                                     <span class="info-label">DEPARTMENT</span>
-                                    <span class="info-value">Banking</span>
+                                    <span class="info-value" id="profileDepartmentValue">Banking</span>
                                 </div>
                             </div>
 
                             <div class="info-row">
                                 <div class="info-item">
                                     <span class="info-label">REPORTING MANAGER</span>
-                                    <span class="info-value">Ramesh Kumar</span>
+                                    <span class="info-value" id="profileManagerValue">Ramesh Kumar</span>
                                 </div>
                             </div>
 
                             <div class="info-row">
                                 <div class="info-item full-width">
                                     <span class="info-label">EMAIL ADDRESS</span>
-                                    <span class="info-value">ronaldo@leavepal.com</span>
+                                    <span class="info-value" id="profileEmailValue">ronaldo@leavepal.com</span>
                                 </div>
                             </div>
                         </div>
@@ -173,20 +173,18 @@
     </div>
 
     <script>
-        // Check if user is logged in
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!localStorage.getItem('loggedInUser')) {
+        // Check if user is logged in and update employee links if needed
+        document.addEventListener('DOMContentLoaded', async function() {
+            const user = JSON.parse(localStorage.getItem('loggedInUser')) || { role: 'guest' };
+            if (!user || !user.role || user.role === 'guest') {
                 window.location.href = 'index.html';
+                return;
             }
-        });
 
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'index.html';
-        }
+            if (user.role === 'employee') {
+                await loadEmployeeDashboard(user);
+            }
 
-        // Update active nav item
-        document.addEventListener('DOMContentLoaded', function() {
             const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
             const navItems = document.querySelectorAll('.nav-item');
             navItems.forEach(item => {
@@ -197,6 +195,23 @@
                 }
             });
         });
+
+        async function loadEmployeeDashboard(user) {
+            const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Employee';
+            document.querySelector('.user-name').textContent = fullName;
+            document.querySelector('.welcome-section h1').textContent = `Morning, ${fullName}.`;
+            document.getElementById('profileFullNameValue').textContent = fullName;
+            document.getElementById('profileEmployeeIdValue').textContent = user.employeeId || user.username || 'N/A';
+            document.getElementById('profileDesignationValue').textContent = user.designation || '—';
+            document.getElementById('profileDepartmentValue').textContent = user.department || '—';
+            document.getElementById('profileManagerValue').textContent = user.reporting || '—';
+            document.getElementById('profileEmailValue').textContent = user.emailId || '—';
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
     </script>
 </body>
 </html>

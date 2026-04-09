@@ -124,30 +124,30 @@
                         <div class="profile-header">
                             <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23D4AF37'/%3E%3Ccircle cx='50' cy='35' r='20' fill='%23000'/%3E%3Cpath d='M20 90 Q20 70 50 70 Q80 70 80 90' fill='%23000'/%3E%3C/svg%3E" alt="Profile" class="sidebar-profile-img">
                             <div class="profile-info-text">
-                                <h4>Ronaldo</h4>
-                                <p>Employee ID: TR-505</p>
+                                <h4 id="sidebarProfileName">Employee</h4>
+                                <p>Employee ID: <span id="sidebarEmployeeId">N/A</span></p>
                             </div>
                         </div>
 
                         <div class="detail-item">
                             <div class="detail-label">EMAIL ADDRESS</div>
-                            <div class="detail-value">ronaldo@leavepal.com</div>
+                            <div class="detail-value" id="sidebarEmail">ronaldo@leavepal.com</div>
                         </div>
 
                         <div class="detail-item">
                             <div class="detail-label">REPORTING AUTHORITY</div>
-                            <div class="detail-value">Ramesh Kumar</div>
+                            <div class="detail-value" id="sidebarReporting">Ramesh Kumar</div>
                         </div>
 
                         <div class="leave-balance-box">
                             <h5>Leave Balance</h5>
                             <div class="balance-item">
                                 <span>Sick Leave</span>
-                                <span class="balance-count">08 Left</span>
+                                <span class="balance-count" id="sidebarSickCount">08 Left</span>
                             </div>
                             <div class="balance-item">
                                 <span>Casual Leave</span>
-                                <span class="balance-count">04 Left</span>
+                                <span class="balance-count" id="sidebarCasualCount">04 Left</span>
                             </div>
                         </div>
                     </div>
@@ -157,14 +157,30 @@
     </div>
 
     <script>
-        // Check if user is logged in
         document.addEventListener('DOMContentLoaded', function() {
-            if (!localStorage.getItem('loggedInUser')) {
+            const currentUser = JSON.parse(localStorage.getItem('loggedInUser')) || null;
+            if (!currentUser || !currentUser.role || currentUser.role === 'guest') {
                 window.location.href = 'index.html';
+                return;
             }
-            
-            // Initialize leave balances if not exists
-            initializeLeaveBalances();
+
+            const fullName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || 'Employee';
+            document.querySelector('.user-name').textContent = fullName;
+            document.getElementById('sidebarProfileName').textContent = fullName;
+            document.getElementById('sidebarEmployeeId').textContent = currentUser.employeeId || 'N/A';
+            document.getElementById('sidebarEmail').textContent = currentUser.emailId || '—';
+            document.getElementById('sidebarReporting').textContent = currentUser.reporting || '—';
+
+            initializeLeaveBalances(currentUser);
+            updateLeaveSidebar(currentUser);
+
+            const applyLeaveForm = document.getElementById('applyLeaveForm');
+            if (applyLeaveForm) {
+                applyLeaveForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    applyLeaveForCurrentUser(currentUser);
+                });
+            }
         });
 
         function logout() {
@@ -175,10 +191,10 @@
         function calculateDuration() {
             const fromDate = new Date(document.getElementById('fromDate').value);
             const toDate = new Date(document.getElementById('toDate').value);
-            
+
             if (fromDate && toDate && toDate >= fromDate) {
                 const timeDiff = toDate - fromDate;
-                const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1; // +1 to include both days
+                const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
                 document.getElementById('durationValue').textContent = days;
             } else {
                 document.getElementById('durationValue').textContent = 0;
@@ -189,62 +205,139 @@
             window.location.href = 'leave-tracker.html';
         }
 
-        // Form submission
-        const applyLeaveForm = document.getElementById('applyLeaveForm');
-        if (applyLeaveForm) {
-            applyLeaveForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const leaveType = document.getElementById('leaveType').value;
-                const fromDate = document.getElementById('fromDate').value;
-                const toDate = document.getElementById('toDate').value;
-                const reason = document.getElementById('reason').value;
-                const duration = parseInt(document.getElementById('durationValue').textContent);
-                
-                // Get current user
-                const currentUser = JSON.parse(localStorage.getItem('loggedInUser')) || { name: 'Ronaldo', employeeId: 'TR-505' };
-                
-                // Create leave application object
-                const leaveApplication = {
-                    id: Date.now().toString(),
-                    employeeId: currentUser.employeeId,
-                    employeeName: currentUser.name,
-                    leaveType: leaveType,
-                    fromDate: fromDate,
-                    toDate: toDate,
-                    duration: duration,
-                    reason: reason,
-                    status: 'PENDING',
-                    appliedDate: new Date().toISOString().split('T')[0]
-                };
-                
-                // Save to localStorage
-                let leaveApplications = JSON.parse(localStorage.getItem('leaveApplications')) || [];
-                leaveApplications.push(leaveApplication);
-                localStorage.setItem('leaveApplications', JSON.stringify(leaveApplications));
-                
-                // Update leave balances
-                updateLeaveBalances(leaveType, duration);
-                
-                // Show success message
-                alert(`Leave applied successfully!\n\nLeave Type: ${leaveType}\nFrom: ${fromDate}\nTo: ${toDate}\nDuration: ${duration} Days\n\nYour leave request has been submitted to the admin for approval.`);
-                
-                // Navigate back to leave tracker
-                setTimeout(() => {
-                    window.location.href = 'leave-tracker.html';
-                }, 1500);
-            });
+        function getUserKey(user) {
+            return user.username || user.emailId || user.employeeId || 'anonymous';
         }
 
-        function initializeLeaveBalances() {
-            if (!localStorage.getItem('leaveBalances')) {
-                const initialBalances = {
-                    sick: { available: 12, booked: 0 },
-                    casual: { available: 15, booked: 0 },
-                    lop: { booked: 0 }
+        function initializeLeaveBalances(user) {
+            const key = getUserKey(user);
+            const store = JSON.parse(localStorage.getItem('leaveBalancesByUser') || '{}');
+            if (!store[key]) {
+                store[key] = {
+                    sick: { booked: 0 },
+                    casual: { booked: 0 },
+                    lop: { booked: 0 },
+                    joining: user.joining || ''
                 };
-                localStorage.setItem('leaveBalances', JSON.stringify(initialBalances));
+                localStorage.setItem('leaveBalancesByUser', JSON.stringify(store));
             }
+        }
+
+        function getLeaveBalances(user) {
+            const key = getUserKey(user);
+            const store = JSON.parse(localStorage.getItem('leaveBalancesByUser') || '{}');
+            return store[key] || { sick: { booked: 0 }, casual: { booked: 0 }, lop: { booked: 0 }, joining: user.joining || '' };
+        }
+
+        function saveLeaveBalances(user, balances) {
+            const key = getUserKey(user);
+            const store = JSON.parse(localStorage.getItem('leaveBalancesByUser') || '{}');
+            store[key] = balances;
+            store[key].joining = user.joining || store[key].joining || '';
+            localStorage.setItem('leaveBalancesByUser', JSON.stringify(store));
+        }
+
+        function calculateCycleAccrual(joiningDateString) {
+            const joinDate = parseFlexibleDate(joiningDateString);
+            if (!joinDate) {
+                return 0;
+            }
+
+            const today = new Date();
+            const currentYear = today.getMonth() < 3 ? today.getFullYear() - 1 : today.getFullYear();
+            const cycleStart = new Date(currentYear, 3, 1);
+            const cycleEnd = new Date(currentYear + 1, 2, 31);
+            const effectiveStart = joinDate > cycleStart ? joinDate : cycleStart;
+            if (effectiveStart > cycleEnd) {
+                return 0;
+            }
+
+            return monthsInclusive(effectiveStart, cycleEnd);
+        }
+
+        function parseFlexibleDate(value) {
+            if (!value) {
+                return null;
+            }
+            const parsed = new Date(value);
+            if (!isNaN(parsed.getTime())) {
+                return parsed;
+            }
+            const normalized = value.replace(/-/g, ' ').replace(/\s+/g, ' ');
+            const fallback = new Date(normalized);
+            return isNaN(fallback.getTime()) ? null : fallback;
+        }
+
+        function monthsInclusive(start, end) {
+            return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+        }
+
+        function applyLeaveForCurrentUser(currentUser) {
+            const leaveType = document.getElementById('leaveType').value;
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            const reason = document.getElementById('reason').value;
+            const duration = parseInt(document.getElementById('durationValue').textContent, 10) || 0;
+
+            if (!leaveType || duration <= 0 || !fromDate || !toDate) {
+                alert('Please select valid leave dates and type before submitting.');
+                return;
+            }
+
+            const userName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim();
+            const userApplications = JSON.parse(localStorage.getItem('leaveApplications') || '[]');
+            const leaveApplication = {
+                id: Date.now().toString(),
+                employeeId: currentUser.employeeId,
+                employeeName: userName || currentUser.emailId || currentUser.username,
+                leaveType: leaveType,
+                fromDate: fromDate,
+                toDate: toDate,
+                duration: duration,
+                reason: reason,
+                status: 'PENDING',
+                appliedDate: new Date().toISOString().split('T')[0]
+            };
+
+            userApplications.push(leaveApplication);
+            localStorage.setItem('leaveApplications', JSON.stringify(userApplications));
+
+            updateLeaveBalances(currentUser, leaveType, duration);
+            updateLeaveSidebar(currentUser);
+
+            alert(`Leave applied successfully!\n\nLeave Type: ${leaveType}\nFrom: ${fromDate}\nTo: ${toDate}\nDuration: ${duration} Days\n\nYour leave was recorded and pending admin review.`);
+            setTimeout(() => {
+                window.location.href = 'leave-tracker.html';
+            }, 1000);
+        }
+
+        function updateLeaveBalances(user, leaveType, duration) {
+            const balances = getLeaveBalances(user);
+            const accrual = calculateCycleAccrual(user.joining);
+            const available = Math.max(0, accrual - (balances[leaveType]?.booked || 0));
+
+            if (leaveType === 'lop') {
+                balances.lop.booked = (balances.lop.booked || 0) + duration;
+            } else {
+                const used = Math.min(duration, available);
+                balances[leaveType].booked = (balances[leaveType].booked || 0) + used;
+                const excess = duration - used;
+                if (excess > 0) {
+                    balances.lop.booked = (balances.lop.booked || 0) + excess;
+                }
+            }
+
+            saveLeaveBalances(user, balances);
+        }
+
+        function updateLeaveSidebar(user) {
+            const balances = getLeaveBalances(user);
+            const accrual = calculateCycleAccrual(user.joining);
+            const sickAvailable = Math.max(0, accrual - (balances.sick.booked || 0));
+            const casualAvailable = Math.max(0, accrual - (balances.casual.booked || 0));
+
+            document.getElementById('sidebarSickCount').textContent = `${String(sickAvailable).padStart(2, '0')} Left`;
+            document.getElementById('sidebarCasualCount').textContent = `${String(casualAvailable).padStart(2, '0')} Left`;
         }
 
         // Update active nav item

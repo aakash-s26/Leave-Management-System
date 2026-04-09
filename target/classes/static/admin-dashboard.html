@@ -29,7 +29,7 @@
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>
-                    Employees
+                    Employee Details
                 </a>
                 <a href="leave-tracker.html" class="nav-item">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -38,7 +38,7 @@
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
-                    Leave Tracker Data
+                    Employee Leave Data
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -76,24 +76,15 @@
                         <div class="metric-icon-card"><span>👥</span></div>
                         <div>
                             <p class="metric-label">TOTAL STAFF</p>
-                            <h2>2,492</h2>
-                            <p class="metric-subtext">+12% increase from last month</p>
+                            <h2 id="totalStaffCount">0</h2>
                         </div>
                     </div>
-                    <div class="metric-card admin-metric-card">
-                        <div class="metric-icon-card"><span>📩</span></div>
-                        <div>
-                            <p class="metric-label">PENDING REQUESTS</p>
-                            <h2>42</h2>
-                            <p class="metric-subtext">Requires your attention</p>
-                        </div>
-                    </div>
+                    
                     <div class="metric-card admin-metric-card">
                         <div class="metric-icon-card"><span>🏢</span></div>
                         <div>
                             <p class="metric-label">ACTIVE DEPTS</p>
-                            <h2>12</h2>
-                            <p class="metric-subtext">Functional business units</p>
+                            <h2 id="activeDeptCount">0</h2>
                         </div>
                     </div>
                 </div>
@@ -103,19 +94,19 @@
                         <div class="profile-avatar-xl"></div>
                         <div class="profile-details">
                             <p class="section-label">FULL NAME</p>
-                            <h3>Alex Rivera</h3>
+                            <h3 id="adminFullName">Alex Rivera</h3>
                         </div>
                         <div class="profile-meta">
                             <p class="section-label">ADMIN ID</p>
-                            <strong>ADM-2024-001</strong>
+                            <strong id="adminId">ADM-2024-001</strong>
                         </div>
                         <div class="profile-meta">
                             <p class="section-label">EMAIL ADDRESS</p>
-                            <strong>alex.rivera@leavepal.com</strong>
+                            <strong id="adminEmail">alex.rivera@leavepal.com</strong>
                         </div>
                         <div class="profile-badge">ADMINISTRATOR</div>
                         <div class="profile-actions">
-                            <button class="small-icon-btn">✎</button>
+                            <button class="small-icon-btn" onclick="navigateToEditProfile()">✎</button>
                             <button class="small-icon-btn">⋮</button>
                         </div>
                     </div>
@@ -133,7 +124,7 @@
                             <thead>
                                 <tr><th>NAME</th><th>DEPT</th><th>JOIN DATE</th></tr>
                             </thead>
-                            <tbody>
+                            <tbody id="newHiresTableBody">
                                 <tr><td>Johnathan Doe</td><td>Engineering</td><td>Oct 12, 2023</td></tr>
                                 <tr><td>Sarah Miller</td><td>Marketing</td><td>Oct 08, 2023</td></tr>
                                 <tr><td>Robert J.</td><td>Finance</td><td>Oct 05, 2023</td></tr>
@@ -161,12 +152,93 @@
             const user = JSON.parse(localStorage.getItem('loggedInUser')) || { role: 'guest' };
             if (user.role !== 'admin') {
                 window.location.href = 'index.html';
+                return;
             }
+
+            const adminName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin';
+            document.querySelector('.admin-user-name').textContent = adminName;
+            document.querySelector('.admin-user-role').textContent = 'Administrator';
+            document.getElementById('adminFullName').textContent = adminName;
+            document.getElementById('adminId').textContent = user.employeeId || user.username || 'ADM-2024-001';
+            document.getElementById('adminEmail').textContent = user.emailId || user.username || 'admin@leavepal.com';
+
+            loadDashboardData();
         });
 
         function logout() {
             localStorage.clear();
             window.location.href = 'index.html';
+        }
+
+        function getAuthHeaders() {
+            const user = JSON.parse(localStorage.getItem('loggedInUser')) || {};
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (user.token) {
+                headers['Authorization'] = `Bearer ${user.token}`;
+            }
+            return headers;
+        }
+
+        function navigateToEditProfile() {
+            window.location.href = 'edit-profile.html';
+        }
+
+        function loadDashboardData() {
+            fetch('/api/users', {
+                headers: getAuthHeaders()
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const employees = data.filter(user => user.role && user.role.toLowerCase() === 'employee');
+                    document.getElementById('totalStaffCount').textContent = employees.length;
+
+                    const pendingApplications = JSON.parse(localStorage.getItem('leaveApplications') || '[]')
+                        .filter(app => employees.some(employee => employee.employeeId === app.employeeId) && app.status === 'PENDING');
+                    document.getElementById('pendingRequestsCount').textContent = pendingApplications.length;
+
+                    const uniqueDepartments = new Set();
+                    employees.forEach(user => {
+                        if (user.department) {
+                            uniqueDepartments.add(user.department);
+                        }
+                    });
+                    document.getElementById('activeDeptCount').textContent = uniqueDepartments.size;
+
+                    const newHires = employees
+                        .filter(user => user.joining)
+                        .sort((a, b) => new Date(b.joining) - new Date(a.joining))
+                        .slice(0, 3);
+
+                    const tbody = document.getElementById('newHiresTableBody');
+                    tbody.innerHTML = newHires.map(user => `
+                        <tr>
+                            <td>${user.firstName || ''} ${user.lastName || ''}</td>
+                            <td>${user.department || '—'}</td>
+                            <td>${user.joining ? new Date(user.joining).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: '2-digit'
+                            }) : '—'}</td>
+                        </tr>
+                    `).join('');
+
+                    const deptContainer = document.querySelector('.departments-card');
+                    const existingItems = deptContainer.querySelectorAll('.dept-item');
+                    existingItems.forEach(item => item.remove());
+
+                    Array.from(uniqueDepartments).slice(0, 3).forEach(dept => {
+                        const count = employees.filter(user => user.department === dept).length;
+                        const div = document.createElement('div');
+                        div.className = 'dept-item';
+                        div.innerHTML = `<span>${dept}</span><strong>${count}</strong>`;
+                        deptContainer.appendChild(div);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading dashboard data:', error);
+                });
         }
     </script>
 </body>

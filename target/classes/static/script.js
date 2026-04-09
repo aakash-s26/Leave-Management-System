@@ -1,6 +1,7 @@
-// Check stored preference or default to employee
+// Check stored preference or default to the currently active tab
 document.addEventListener('DOMContentLoaded', function() {
-    const savedRole = localStorage.getItem('userRole') || 'employee';
+    const activeTab = document.querySelector('.tab-btn.active');
+    const savedRole = localStorage.getItem('userRole') || (activeTab ? activeTab.dataset.role : 'employee');
     setTheme(savedRole);
     
     // Tab switching
@@ -34,19 +35,37 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form submission
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
-        loginForm.addEventListener('submit', function(e) {
+        loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            const username = document.getElementById('username').value;
-            const role = document.querySelector('.tab-btn.active').dataset.role;
-            
-            // Store login info
-            localStorage.setItem('loggedInUser', JSON.stringify({ username, role }));
-            localStorage.setItem('userRole', role);
-            
-            if (role === 'employee') {
-                window.location.href = 'dashboard.html';
-            } else {
-                window.location.href = 'admin-dashboard.html';
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const activeTab = document.querySelector('.tab-btn.active');
+            const role = activeTab ? activeTab.dataset.role : (localStorage.getItem('userRole') || 'employee');
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password, role })
+                });
+
+                if (!response.ok) {
+                    const message = await response.text();
+                    alert(message || 'Login failed. Check your credentials.');
+                    return;
+                }
+
+                const user = await response.json();
+                localStorage.setItem('loggedInUser', JSON.stringify(user));
+                localStorage.setItem('userRole', user.role);
+
+                const redirectUrl = user.redirectUrl || (user.role === 'employee' ? 'dashboard.html' : 'admin-dashboard.html');
+                window.location.href = redirectUrl;
+            } catch (error) {
+                console.error(error);
+                alert('Unable to connect to the authentication server.');
             }
         });
     }
