@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Employee - LeavePal</title>
+    <link rel="stylesheet" href="dashboard-styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <svg width="50" height="50" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="4" width="32" height="32" rx="4" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <path d="M12 20L17 25L28 13" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="logo-text">LeavePal</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="admin-dashboard.html" class="nav-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="employee-details.html" class="nav-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    Employee Details
+                </a>
+                <a href="leave-tracker.html" class="nav-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    Leave Tracker
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="header">
+                <div class="header-left">
+                    <h2>Add Employee</h2>
+                </div>
+                <div class="header-right">
+                    <div class="user-profile">
+                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23D4AF37'/%3E%3Ccircle cx='50' cy='35' r='20' fill='%23000'/%3E%3Cpath d='M20 90 Q20 70 50 70 Q80 70 80 90' fill='%23000'/%3E%3C/svg%3E" alt="Profile" class="profile-img">
+                        <span class="user-name">Alex Rivera</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-content">
+                <div class="employee-form-card">
+                    <h3>Basic Info</h3>
+                    <div class="employee-form-grid">
+                        <div class="form-group">
+                            <label>EMPLOYEE ID</label>
+                            <input type="text" id="employeeId" placeholder="Generating..." readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>EMAIL ID</label>
+                            <input type="email" id="emailId" placeholder="official@leavepal.com">
+                        </div>
+                        <div class="form-group">
+                            <label>PASSWORD</label>
+                            <input type="password" id="password" placeholder="Enter password">
+                        </div>
+                        <div class="form-group">
+                            <label>FIRST NAME</label>
+                            <input type="text" id="firstName" placeholder="Enter first name">
+                        </div>
+                        <div class="form-group">
+                            <label>LAST NAME</label>
+                            <input type="text" id="lastName" placeholder="Enter last name">
+                        </div>
+                        <div class="form-group">
+                            <label>DEPARTMENT</label>
+                            <select id="department">
+                                <option>Engineering</option>
+                                <option>Marketing</option>
+                                <option>HR Operations</option>
+                                <option>Finance</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>DESIGNATION</label>
+                            <input type="text" id="designation" placeholder="e.g. Senior Product Designer">
+                        </div>
+                        <div class="form-group">
+                            <label>REPORTING TO</label>
+                            <input type="text" id="reportingTo" placeholder="Select Manager">
+                        </div>
+                        <div class="form-group">
+                            <label>LOCATION</label>
+                            <input type="text" id="location" placeholder="e.g. London Office">
+                        </div>
+                        <div class="form-group">
+                            <label>DATE OF JOINING</label>
+                            <input type="date" id="dateJoining">
+                        </div>
+                    </div>
+
+                    <h3 class="section-title">Personal Information</h3>
+                    <div class="employee-form-grid">
+                        <div class="form-group">
+                            <label>PHONE NUMBER</label>
+                            <input type="text" id="phoneNumber" placeholder="+44 20 XXXX XXXX">
+                        </div>
+                        <div class="form-group">
+                            <label>NATIONALITY</label>
+                            <input type="text" id="nationality" placeholder="British">
+                        </div>
+                        <div class="form-group">
+                            <label>BLOOD GROUP</label>
+                            <select id="bloodGroup">
+                                <option>A+</option>
+                                <option>B+</option>
+                                <option>O+</option>
+                                <option>AB+</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>MARITAL STATUS</label>
+                            <select id="maritalStatus">
+                                <option>Single</option>
+                                <option>Married</option>
+                                <option>Divorced</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>DATE OF BIRTH</label>
+                            <input type="date" id="dob">
+                        </div>
+                        <div class="form-group">
+                            <label>PERSONAL EMAIL</label>
+                            <input type="email" id="personalEmail" placeholder="personal@email.com">
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>PERMANENT ADDRESS</label>
+                            <input type="text" id="address" placeholder="Enter full residential address...">
+                        </div>
+                    </div>
+
+                    <div class="form-buttons" style="margin-top: 24px;">
+                        <button type="button" class="cancel-btn" onclick="cancelAddEmployee()">Cancel</button>
+                        <button type="button" class="apply-btn" onclick="saveEmployee()">Save</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            const user = JSON.parse(localStorage.getItem('loggedInUser')) || { role: 'guest' };
+            if (user.role !== 'admin') {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            document.querySelector('.user-name').textContent = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin';
+            await loadNextEmployeeId();
+        });
+
+        async function loadNextEmployeeId() {
+            try {
+                const response = await fetch('/api/users');
+                if (!response.ok) {
+                    document.getElementById('employeeId').value = 'LP-001';
+                    return;
+                }
+
+                const users = await response.json();
+                const employeeNumbers = users
+                    .filter(user => user.role && user.role.toLowerCase() === 'employee')
+                    .map(user => user.employeeId)
+                    .filter(id => typeof id === 'string')
+                    .map(id => {
+                        const match = id.match(/^LP-(\d{3})$/);
+                        return match ? parseInt(match[1], 10) : 0;
+                    });
+
+                const nextNumber = employeeNumbers.length > 0 ? Math.max(...employeeNumbers) + 1 : 1;
+                document.getElementById('employeeId').value = `LP-${String(nextNumber).padStart(3, '0')}`;
+            } catch (error) {
+                console.error('Unable to load next employee ID:', error);
+                document.getElementById('employeeId').value = 'LP-001';
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        function saveEmployee() {
+            const employee = {
+                username: document.getElementById('emailId').value, // Use email as username
+                password: document.getElementById('password').value,
+                role: 'employee',
+                employeeId: document.getElementById('employeeId').value,
+                emailId: document.getElementById('emailId').value,
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                department: document.getElementById('department').value,
+                designation: document.getElementById('designation').value,
+                reporting: document.getElementById('reportingTo').value,
+                location: document.getElementById('location').value,
+                joining: document.getElementById('dateJoining').value,
+                phoneNumber: document.getElementById('phoneNumber').value,
+                nationality: document.getElementById('nationality').value,
+                bloodGroup: document.getElementById('bloodGroup').value,
+                maritalStatus: document.getElementById('maritalStatus').value,
+                dob: document.getElementById('dob').value,
+                personalEmail: document.getElementById('personalEmail').value,
+                address: document.getElementById('address').value,
+            };
+
+            fetch('/api/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(employee),
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('Employee added successfully!');
+                    window.location.href = 'employee-details.html';
+                } else {
+                    return response.text().then(text => { throw new Error(text); });
+                }
+            })
+            .catch(error => {
+                alert('Error adding employee: ' + error.message);
+            });
+        }
+
+        function cancelAddEmployee() {
+            window.location.href = 'employee-details.html';
+        }
+    </script>
+</body>
+</html>
