@@ -16,6 +16,14 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
@@ -25,6 +33,7 @@ import java.util.Base64;
 
 @RestController
 @RequestMapping("/api/leave-applications")
+@Tag(name = "Leave Applications", description = "APIs for applying leave, manager/admin review workflow, and medical attachment access")
 public class LeaveApplicationController {
     private final LeaveApplicationRepository leaveApplicationRepository;
     private final UserAccountRepository userRepository;
@@ -45,6 +54,20 @@ public class LeaveApplicationController {
     }
 
     @PostMapping
+    @Operation(
+        summary = "Apply Leave",
+        description = "Creates a new leave request for employee/manager users. Sick leave for 3 or more days requires a medical attachment."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Leave request created successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LeaveApplication.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid leave payload or reporting manager mapping issue",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "401", description = "Unauthorized",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "403", description = "Role is not allowed to apply leave",
+            content = @Content(mediaType = "text/plain"))
+    })
     public ResponseEntity<?> applyLeave(@RequestBody LeaveApplication request, HttpServletRequest httpRequest) {
         Optional<UserAccount> actorOpt = jwtHelper.getActor(httpRequest);
         if (actorOpt.isEmpty()) {
@@ -116,6 +139,16 @@ public class LeaveApplicationController {
     }
 
     @GetMapping("/my")
+    @Operation(
+        summary = "Get My Leave Applications",
+        description = "Returns leave requests for the currently authenticated user (matched by employeeId/username/emailId)."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Leave requests retrieved successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LeaveApplication.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized",
+            content = @Content(mediaType = "text/plain"))
+    })
     public ResponseEntity<?> getMyApplications(HttpServletRequest httpRequest) {
         Optional<UserAccount> actorOpt = jwtHelper.getActor(httpRequest);
         if (actorOpt.isEmpty()) {
@@ -134,6 +167,16 @@ public class LeaveApplicationController {
     }
 
     @GetMapping("/all")
+    @Operation(
+        summary = "Get All Leave Applications",
+        description = "Admin-only endpoint that returns every leave request in the system."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "All leave requests retrieved successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LeaveApplication.class))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(mediaType = "text/plain"))
+    })
     public ResponseEntity<?> getAllApplications(HttpServletRequest request) {
         if (!jwtHelper.isAdmin(request)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
@@ -142,6 +185,18 @@ public class LeaveApplicationController {
     }
 
     @GetMapping("/manager")
+    @Operation(
+        summary = "Get Manager Review Queue",
+        description = "Returns leave requests that belong to a manager's subordinates and direct manager-routed requests."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Manager leave queue retrieved successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LeaveApplication.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(mediaType = "text/plain"))
+    })
     public ResponseEntity<?> getManagerApplications(HttpServletRequest request) {
         Optional<UserAccount> actorOpt = jwtHelper.getActor(request);
         if (actorOpt.isEmpty()) {
@@ -175,7 +230,23 @@ public class LeaveApplicationController {
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<?> updateStatus(@PathVariable Long id,
+    @Operation(
+        summary = "Update Leave Request Status",
+        description = "Approves or rejects a pending leave request. Allowed for admins and authorized managers."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Leave status updated successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LeaveApplication.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid status transition or invalid payload",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "401", description = "Unauthorized",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "404", description = "Leave request not found",
+            content = @Content(mediaType = "text/plain"))
+    })
+    public ResponseEntity<?> updateStatus(@Parameter(description = "Leave request ID", required = true, example = "101") @PathVariable Long id,
                                           @RequestBody Map<String, String> requestBody,
                                           HttpServletRequest request) {
         Optional<UserAccount> actorOpt = jwtHelper.getActor(request);
@@ -243,7 +314,22 @@ public class LeaveApplicationController {
     }
 
     @GetMapping("/{id}/attachment")
-    public ResponseEntity<?> getSickAttachment(@PathVariable Long id,
+    @Operation(
+        summary = "View or Download Medical Attachment",
+        description = "Returns the medical attachment for a leave request. Set download=true for attachment disposition."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Attachment returned successfully"),
+        @ApiResponse(responseCode = "400", description = "Attachment content is invalid",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "401", description = "Unauthorized",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "404", description = "Leave request or attachment not found",
+            content = @Content(mediaType = "text/plain"))
+    })
+    public ResponseEntity<?> getSickAttachment(@Parameter(description = "Leave request ID", required = true, example = "101") @PathVariable Long id,
                                                @RequestParam(name = "download", defaultValue = "false") boolean download,
                                                HttpServletRequest request) {
         Optional<UserAccount> actorOpt = jwtHelper.getActor(request);

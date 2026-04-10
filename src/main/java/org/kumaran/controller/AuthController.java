@@ -123,6 +123,16 @@ public class AuthController {
     }
 
     @PostMapping("/auth/forgot-password-request")
+    @Operation(
+        summary = "Request Password Reset",
+        description = "Queues a password reset request for workforce users (employee/manager)."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Reset request queued successfully",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "400", description = "Username or email is missing",
+            content = @Content(mediaType = "text/plain"))
+    })
     public ResponseEntity<?> requestPasswordReset(@RequestBody Map<String, String> requestBody) {
         String identifier = requestBody.getOrDefault("usernameOrEmail", requestBody.getOrDefault("email", ""));
         if (identifier == null || identifier.trim().isBlank()) {
@@ -152,7 +162,22 @@ public class AuthController {
     }
 
     @PostMapping("/users/{username}/generate-temporary-password")
-    public ResponseEntity<?> generateTemporaryPassword(@PathVariable String username,
+    @Operation(
+        summary = "Generate Temporary Password",
+        description = "Admin-only endpoint to generate and assign a temporary password for employee/manager accounts."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Temporary password generated successfully"),
+        @ApiResponse(responseCode = "400", description = "Unsupported target role",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "403", description = "Only admin users can generate passwords",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "404", description = "User not found",
+            content = @Content(mediaType = "text/plain"))
+    })
+    public ResponseEntity<?> generateTemporaryPassword(
+                                                       @Parameter(description = "Username of target workforce user", required = true, example = "john.doe@company.com")
+                                                       @PathVariable String username,
                                                        HttpServletRequest request) {
         if (!jwtHelper.isAdmin(request)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin users can generate passwords");
@@ -184,6 +209,20 @@ public class AuthController {
     }
 
     @PostMapping("/auth/reset-temporary-password")
+    @Operation(
+        summary = "Reset Temporary Password",
+        description = "Completes first-login password change using the temporary password."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Password updated successfully",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "400", description = "Invalid request payload or reset not required",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "401", description = "Temporary password is incorrect",
+            content = @Content(mediaType = "text/plain")),
+        @ApiResponse(responseCode = "404", description = "User not found",
+            content = @Content(mediaType = "text/plain"))
+    })
     public ResponseEntity<?> resetTemporaryPassword(@RequestBody Map<String, String> requestBody) {
         String username = requestBody.getOrDefault("username", "").trim();
         String currentPassword = requestBody.getOrDefault("currentPassword", "");
