@@ -1,7 +1,7 @@
 package org.kumaran.security;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.kumaran.model.UserAccount;
+import org.kumaran.entity.UserAccount;
 import org.kumaran.repository.UserAccountRepository;
 import org.springframework.stereotype.Component;
 
@@ -68,3 +68,4 @@ public class JwtRequestHelper {
         return jwtUtil.generateToken(username, role);
     }
 }
+

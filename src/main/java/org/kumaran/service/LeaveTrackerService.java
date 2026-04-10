@@ -1,8 +1,8 @@
 package org.kumaran.service;
 
-import org.kumaran.model.LeaveTrackerData;
-import org.kumaran.model.UserAccount;
-import org.kumaran.model.LeaveApplication;
+import org.kumaran.entity.LeaveTrackerData;
+import org.kumaran.entity.UserAccount;
+import org.kumaran.entity.LeaveApplication;
 import org.kumaran.repository.LeaveApplicationRepository;
 import org.kumaran.repository.LeaveTrackerRepository;
 import org.kumaran.repository.UserAccountRepository;
@@ -212,3 +212,4 @@ public class LeaveTrackerService {
         return recalculateLeaveTrackerForEmployee(employee);
     }
 }
+

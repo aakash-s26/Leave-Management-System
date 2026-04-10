@@ -1,9 +1,9 @@
-package org.kumaran.web;
+package org.kumaran.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.kumaran.model.AppNotification;
-import org.kumaran.model.LeaveApplication;
-import org.kumaran.model.UserAccount;
+import org.kumaran.entity.AppNotification;
+import org.kumaran.entity.LeaveApplication;
+import org.kumaran.entity.UserAccount;
 import org.kumaran.repository.AppNotificationRepository;
 import org.kumaran.repository.LeaveApplicationRepository;
 import org.kumaran.repository.UserAccountRepository;
@@ -491,3 +491,5 @@ public class LeaveApplicationController {
     private record AttachmentPayload(String contentType, byte[] bytes) {
     }
 }
+
+

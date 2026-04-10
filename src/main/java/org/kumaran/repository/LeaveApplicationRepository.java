@@ -1,6 +1,6 @@
 package org.kumaran.repository;
 
-import org.kumaran.model.LeaveApplication;
+import org.kumaran.entity.LeaveApplication;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,3 +10,4 @@ import java.util.List;
 public interface LeaveApplicationRepository extends JpaRepository<LeaveApplication, Long> {
     List<LeaveApplication> findByEmployeeIdOrUsernameOrEmailIdOrderByCreatedAtDesc(String employeeId, String username, String emailId);
 }
+

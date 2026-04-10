@@ -1,4 +1,4 @@
-package org.kumaran.model;
+package org.kumaran.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -37,3 +37,5 @@ public class LoginRequest {
         this.role = role;
     }
 }
+
+

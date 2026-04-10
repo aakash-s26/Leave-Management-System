@@ -1,6 +1,7 @@
-package org.kumaran.model;
+package org.kumaran.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import org.kumaran.entity.UserAccount;
 
 @Schema(description = "User profile response")
 public class UserResponse {
@@ -353,3 +354,5 @@ public class UserResponse {
         this.temporaryPasswordIssuedAt = temporaryPasswordIssuedAt;
     }
 }
+
+

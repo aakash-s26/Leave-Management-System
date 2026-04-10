@@ -1,8 +1,8 @@
-package org.kumaran.web;
+package org.kumaran.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.kumaran.model.LeaveTrackerData;
-import org.kumaran.model.UserAccount;
+import org.kumaran.entity.LeaveTrackerData;
+import org.kumaran.entity.UserAccount;
 import org.kumaran.repository.LeaveTrackerRepository;
 import org.kumaran.repository.UserAccountRepository;
 import org.kumaran.security.JwtRequestHelper;
@@ -281,3 +281,5 @@ public class LeaveTrackerController {
         return ResponseEntity.noContent().build();
     }
 }
+
+

@@ -1,6 +1,6 @@
 package org.kumaran.repository;
 
-import org.kumaran.model.UserAccount;
+import org.kumaran.entity.UserAccount;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,3 +13,4 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
     Optional<UserAccount> findByEmailId(String emailId);
     Optional<UserAccount> findByPersonalEmail(String personalEmail);
 }
+

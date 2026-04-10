@@ -1,62 +1,70 @@
-package org.kumaran.model;
+package org.kumaran.dto;
 
-import jakarta.persistence.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 
-@Entity
-@Table(name = "users")
-public class UserAccount {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false, unique = true)
+@Schema(description = "Request payload for creating a new user")
+public class CreateUserRequest {
+    @Schema(description = "Username for login (email for employees)", example = "john.doe@company.com", requiredMode = Schema.RequiredMode.REQUIRED)
     private String username;
 
-    @Column(nullable = false)
+    @Schema(description = "User password", example = "password123", requiredMode = Schema.RequiredMode.REQUIRED)
     private String password;
 
-    @Column(nullable = false)
+    @Schema(description = "User role", example = "employee", allowableValues = {"admin", "manager", "employee"}, requiredMode = Schema.RequiredMode.REQUIRED)
     private String role;
 
-    @Column(unique = true)
+    @Schema(description = "Employee ID (auto-generated if not provided for employees)", example = "LP-001")
     private String employeeId;
 
+    @Schema(description = "Official email address", example = "john.doe@company.com")
     private String emailId;
+
+    @Schema(description = "First name", example = "John", requiredMode = Schema.RequiredMode.REQUIRED)
     private String firstName;
+
+    @Schema(description = "Last name", example = "Doe")
     private String lastName;
+
+    @Schema(description = "Department name", example = "Engineering")
     private String department;
+
+    @Schema(description = "Job designation", example = "Software Engineer")
     private String designation;
-    @Column(name = "reporting")
+
+    @Schema(description = "Reporting authority employee ID", example = "LP-001")
     private String reportingEmployeeId;
+
+    @Schema(description = "Office location", example = "New York")
     private String location;
+
+    @Schema(description = "Joining date (auto-set to current date if not provided)", example = "2024-01-15")
     private String joining;
+
+    @Schema(description = "Phone number", example = "+1-555-0123")
     private String phoneNumber;
+
+    @Schema(description = "Nationality", example = "American")
     private String nationality;
+
+    @Schema(description = "Blood group", example = "O+")
     private String bloodGroup;
+
+    @Schema(description = "Marital status", example = "Single", allowableValues = {"Single", "Married", "Divorced", "Widowed"})
     private String maritalStatus;
+
+    @Schema(description = "Date of birth", example = "1990-05-15")
     private String dob;
+
+    @Schema(description = "Personal email address", example = "john.doe@gmail.com")
     private String personalEmail;
+
+    @Schema(description = "Gender", example = "Male", allowableValues = {"Male", "Female", "Other"})
     private String gender;
+
+    @Schema(description = "Residential address", example = "123 Main St, New York, NY 10001")
     private String address;
 
-    @Column(nullable = false)
-    private boolean passwordResetRequested = false;
-
-    private String passwordResetRequestedAt;
-
-    @Column(nullable = false)
-    private boolean forcePasswordChange = false;
-
-    private String temporaryPasswordIssuedAt;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
+    // Getters and setters
     public String getUsername() {
         return username;
     }
@@ -216,36 +224,5 @@ public class UserAccount {
     public void setAddress(String address) {
         this.address = address;
     }
-
-    public boolean isPasswordResetRequested() {
-        return passwordResetRequested;
-    }
-
-    public void setPasswordResetRequested(boolean passwordResetRequested) {
-        this.passwordResetRequested = passwordResetRequested;
-    }
-
-    public String getPasswordResetRequestedAt() {
-        return passwordResetRequestedAt;
-    }
-
-    public void setPasswordResetRequestedAt(String passwordResetRequestedAt) {
-        this.passwordResetRequestedAt = passwordResetRequestedAt;
-    }
-
-    public boolean isForcePasswordChange() {
-        return forcePasswordChange;
-    }
-
-    public void setForcePasswordChange(boolean forcePasswordChange) {
-        this.forcePasswordChange = forcePasswordChange;
-    }
-
-    public String getTemporaryPasswordIssuedAt() {
-        return temporaryPasswordIssuedAt;
-    }
-
-    public void setTemporaryPasswordIssuedAt(String temporaryPasswordIssuedAt) {
-        this.temporaryPasswordIssuedAt = temporaryPasswordIssuedAt;
-    }
 }
+

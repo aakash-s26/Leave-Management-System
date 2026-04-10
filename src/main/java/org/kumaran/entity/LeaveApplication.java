@@ -1,4 +1,4 @@
-package org.kumaran.model;
+package org.kumaran.entity;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
@@ -261,3 +261,5 @@ public class LeaveApplication {
         this.updatedAt = updatedAt;
     }
 }
+
+

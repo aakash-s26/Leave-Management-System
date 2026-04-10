@@ -1,10 +1,10 @@
-package org.kumaran.web;
+package org.kumaran.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.kumaran.model.CreateUserRequest;
-import org.kumaran.model.LoginRequest;
-import org.kumaran.model.UserAccount;
-import org.kumaran.model.UserResponse;
+import org.kumaran.dto.CreateUserRequest;
+import org.kumaran.dto.LoginRequest;
+import org.kumaran.entity.UserAccount;
+import org.kumaran.dto.UserResponse;
 import org.kumaran.repository.LeaveTrackerRepository;
 import org.kumaran.repository.UserAccountRepository;
 import org.kumaran.security.JwtRequestHelper;
@@ -716,3 +716,5 @@ public class AuthController {
         return builder.toString();
     }
 }
+
+

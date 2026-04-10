@@ -1,4 +1,4 @@
-package org.kumaran.model;
+package org.kumaran.entity;
 
 import jakarta.persistence.*;
 
@@ -93,3 +93,5 @@ public class AppNotification {
         this.readAt = readAt;
     }
 }
+
+

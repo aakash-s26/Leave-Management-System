@@ -1,4 +1,4 @@
-package org.kumaran.model;
+package org.kumaran.entity;
 
 import jakarta.persistence.*;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -191,3 +191,5 @@ public class LeaveTrackerData {
         this.updatedAt = updatedAt;
     }
 }
+
+

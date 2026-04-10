@@ -32,3 +32,4 @@ public class SchemaCompatibilityInitializer implements ApplicationRunner {
         jdbcTemplate.execute("alter table users add column if not exists temporary_password_issued_at varchar(255)");
     }
 }
+

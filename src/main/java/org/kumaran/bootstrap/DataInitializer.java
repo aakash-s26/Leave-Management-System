@@ -1,6 +1,6 @@
 package org.kumaran.bootstrap;
 
-import org.kumaran.model.UserAccount;
+import org.kumaran.entity.UserAccount;
 import org.kumaran.repository.UserAccountRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -41,3 +41,4 @@ public class DataInitializer implements ApplicationRunner {
         userRepository.save(user);
     }
 }
+

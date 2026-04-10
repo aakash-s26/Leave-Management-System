@@ -70,3 +70,4 @@ public class JwtUtil {
         return claims != null ? claims.get("role", String.class) : null;
     }
 }
+

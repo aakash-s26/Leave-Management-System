@@ -52,3 +52,4 @@ public class SupabaseProperties {
         this.timeoutMs = timeoutMs;
     }
 }
+

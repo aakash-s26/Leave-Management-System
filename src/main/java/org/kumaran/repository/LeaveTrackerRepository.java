@@ -1,6 +1,6 @@
 package org.kumaran.repository;
 
-import org.kumaran.model.LeaveTrackerData;
+import org.kumaran.entity.LeaveTrackerData;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -12,3 +12,4 @@ public interface LeaveTrackerRepository extends JpaRepository<LeaveTrackerData, 
     Optional<LeaveTrackerData> findByEmployeeId(String employeeId);
     List<LeaveTrackerData> findByDepartment(String department);
 }
+

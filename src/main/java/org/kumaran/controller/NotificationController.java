@@ -1,7 +1,7 @@
-package org.kumaran.web;
+package org.kumaran.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.kumaran.model.AppNotification;
+import org.kumaran.entity.AppNotification;
 import org.kumaran.repository.AppNotificationRepository;
 import org.kumaran.security.JwtRequestHelper;
 import org.springframework.http.HttpStatus;
@@ -12,7 +12,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.kumaran.model.UserAccount;
+import org.kumaran.entity.UserAccount;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -54,3 +54,5 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("updated", rows.size()));
     }
 }
+
+
