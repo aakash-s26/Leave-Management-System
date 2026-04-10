@@ -39,6 +39,16 @@ public class UserAccount {
     private String gender;
     private String address;
 
+    @Column(nullable = false)
+    private boolean passwordResetRequested = false;
+
+    private String passwordResetRequestedAt;
+
+    @Column(nullable = false)
+    private boolean forcePasswordChange = false;
+
+    private String temporaryPasswordIssuedAt;
+
     public Long getId() {
         return id;
     }
@@ -205,5 +215,37 @@ public class UserAccount {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public boolean isPasswordResetRequested() {
+        return passwordResetRequested;
+    }
+
+    public void setPasswordResetRequested(boolean passwordResetRequested) {
+        this.passwordResetRequested = passwordResetRequested;
+    }
+
+    public String getPasswordResetRequestedAt() {
+        return passwordResetRequestedAt;
+    }
+
+    public void setPasswordResetRequestedAt(String passwordResetRequestedAt) {
+        this.passwordResetRequestedAt = passwordResetRequestedAt;
+    }
+
+    public boolean isForcePasswordChange() {
+        return forcePasswordChange;
+    }
+
+    public void setForcePasswordChange(boolean forcePasswordChange) {
+        this.forcePasswordChange = forcePasswordChange;
+    }
+
+    public String getTemporaryPasswordIssuedAt() {
+        return temporaryPasswordIssuedAt;
+    }
+
+    public void setTemporaryPasswordIssuedAt(String temporaryPasswordIssuedAt) {
+        this.temporaryPasswordIssuedAt = temporaryPasswordIssuedAt;
     }
 }

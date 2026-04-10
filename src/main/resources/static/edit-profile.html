@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Profile - LeavePal</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="dashboard-styles.css">
 </head>
 <body>
@@ -146,10 +147,17 @@
         </main>
     </div>
 
+    <script src="ui-notifications.js"></script>
     <script>
         function logout() {
             localStorage.clear();
             window.location.href = 'index.html';
+        }
+
+        function notify(message, type = 'info') {
+            if (window.showTopRightNotification) {
+                window.showTopRightNotification(message, type);
+            }
         }
 
         function getProfileDefaults() {
@@ -246,7 +254,7 @@
                 }
             } else {
                 const message = await response.text();
-                alert(message || 'Unable to save profile.');
+                notify(message || 'Unable to save profile.', 'error');
             }
         }
 

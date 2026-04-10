@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employee Details - LeavePal</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="dashboard-styles.css">
 </head>
 <body>
@@ -39,6 +40,13 @@
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
                     <span id="leaveTrackerText">Employee Leave Data</span>
+                </a>
+                <a href="manager-leave-requests.html" id="managerLeaveRequestsNav" class="nav-item" style="display:none;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 11l3 3L22 4"></path>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                    </svg>
+                    Leave Requests
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -151,8 +159,8 @@
             <div id="adminEmployeeSection" class="dashboard-content">
                 <div class="page-header-row">
                     <div>
-                        <h1 class="page-heading">Employee Records</h1>
-                        <p class="page-subtitle">Manage and view detailed records of all active employees.</p>
+                        <h1 class="page-heading">Workforce Records</h1>
+                        <p class="page-subtitle">Manage and view detailed records of all active employees and managers.</p>
                     </div>
                     <button class="primary-btn" onclick="window.location.href='add-employee.html'">+ ADD EMPLOYEE</button>
                 </div>
@@ -160,7 +168,6 @@
                 <div class="summary-card small-card">
                     <span>TOTAL STAFF</span>
                     <strong id="totalStaff">0</strong>
-                    <span class="metric-note">+12%</span>
                 </div>
 
                 <div class="table-card">
@@ -172,6 +179,7 @@
                                 <th>DESIGNATION</th>
                                 <th>DEPARTMENT</th>
                                 <th>EMAIL</th>
+                                <th>PASSWORD RESET</th>
                                 <th>ACTION</th>
                             </tr>
                         </thead>
@@ -179,9 +187,20 @@
                     </table>
                 </div>
             </div>
+
+            <div id="employeeProfileModal" class="modal-overlay hidden">
+                <div class="modal-dialog employee-view-modal">
+                    <div class="modal-header">
+                        <h3>Employee Profile</h3>
+                        <button class="close-button" onclick="closeEmployeeProfileModal()" aria-label="Close">&times;</button>
+                    </div>
+                    <div class="modal-profile-grid" id="modalProfileGrid"></div>
+                </div>
+            </div>
         </main>
     </div>
 
+    <script src="ui-notifications.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
             const user = JSON.parse(localStorage.getItem('loggedInUser')) || { role: 'guest' };
@@ -190,20 +209,26 @@
                 return;
             }
 
+            const role = String(user.role || '').toLowerCase();
+
             const dashboardLink = document.getElementById('dashboardLink');
             const leaveTrackerText = document.getElementById('leaveTrackerText');
-            if (user.role.toLowerCase() === 'admin') {
+            const managerLeaveRequestsNav = document.getElementById('managerLeaveRequestsNav');
+            if (role === 'admin') {
                 dashboardLink.href = 'admin-dashboard.html';
                 leaveTrackerText.textContent = 'Employee Leave Data';
             } else {
                 dashboardLink.href = 'dashboard.html';
                 leaveTrackerText.textContent = 'Leave Tracker';
+                if (role === 'manager' && managerLeaveRequestsNav) {
+                    managerLeaveRequestsNav.style.display = 'flex';
+                }
             }
 
-            if (user.role === 'admin') {
+            if (role === 'admin') {
                 document.getElementById('employeeProfileSection').style.display = 'none';
                 document.getElementById('adminEmployeeSection').style.display = 'block';
-                loadEmployees();
+                await loadEmployees();
                 return;
             }
 
@@ -215,6 +240,12 @@
         function logout() {
             localStorage.clear();
             window.location.href = 'index.html';
+        }
+
+        function notify(message, type = 'info') {
+            if (window.showTopRightNotification) {
+                window.showTopRightNotification(message, type);
+            }
         }
 
         function getAuthHeaders() {
@@ -242,12 +273,12 @@
                 const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Employee';
                 document.querySelector('.user-name').textContent = fullName;
                 document.getElementById('profileName').textContent = fullName;
-                document.getElementById('profileEmployeeId').textContent = profile.username;
+                document.getElementById('profileEmployeeId').textContent = profile.employeeId || profile.username || '';
                 document.getElementById('profileEmail').textContent = profile.emailId || '';
                 document.getElementById('profilePhone').textContent = profile.phoneNumber || '';
                 document.getElementById('profileDesignation').textContent = profile.designation || '';
                 document.getElementById('profileDepartment').textContent = profile.department || '';
-                document.getElementById('profileReporting').textContent = profile.reporting || '';
+                document.getElementById('profileReporting').textContent = profile.reportingEmployeeId || profile.reporting || '';
                 document.getElementById('profileLocation').textContent = profile.location || '';
                 document.getElementById('profileJoining').textContent = profile.joining || '';
                 document.getElementById('profileMaritalStatus').textContent = profile.maritalStatus || '';
@@ -262,48 +293,238 @@
             }
         }
 
-        function loadEmployees() {
-            // Fetch employees from API
-            fetch('/api/users', {
-                headers: getAuthHeaders()
-            })
-                .then(response => response.json())
-                .then(data => {
-                    // Filter for employees only
-                    const employees = data.filter(user => user.role === 'employee');
+        async function loadEmployees() {
+            // Fetch workforce users from API
+            try {
+                const response = await fetch('/api/users', {
+                    headers: getAuthHeaders(),
+                    cache: 'no-store'
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    notify('Session expired. Please login again.', 'warning');
+                    setTimeout(() => {
+                        logout();
+                    }, 700);
+                    return;
+                }
+
+                if (!response.ok) {
+                    const message = await response.text();
+                    notify(message || 'Unable to load workforce data.', 'error');
+                    return;
+                }
+
+                const data = await response.json();
+                    // Include both employees and managers in admin listing
+                    const employees = data.filter(user => {
+                        const role = (user.role || '').toLowerCase();
+                        return role === 'employee' || role === 'manager';
+                    });
+
+                    employees.sort((a, b) => {
+                        const aPending = a.passwordResetRequested ? 1 : 0;
+                        const bPending = b.passwordResetRequested ? 1 : 0;
+                        return bPending - aPending;
+                    });
 
                     const tbody = document.getElementById('employeeTableBody');
                     tbody.innerHTML = employees.map(user => ({
-                        id: user.username || 'N/A', // Use username as ID
+                        username: user.username || '',
+                        employeeId: user.employeeId || user.username || 'N/A',
                         initials: (user.firstName ? user.firstName.charAt(0).toUpperCase() : 'E') + (user.lastName ? user.lastName.charAt(0).toUpperCase() : ''),
                         name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
                         designation: user.designation || '—',
                         department: user.department || '—',
-                        email: user.emailId || '—'
+                        email: user.emailId || '—',
+                        passwordResetRequested: !!user.passwordResetRequested,
+                        forcePasswordChange: !!user.forcePasswordChange,
+                        temporaryPasswordIssuedAt: user.temporaryPasswordIssuedAt || ''
                     })).map(emp => `
                         <tr>
-                            <td>${emp.id}</td>
+                            <td>${emp.employeeId}</td>
                             <td><span class="avatar-badge">${emp.initials}</span>${emp.name}</td>
                             <td>${emp.designation}</td>
                             <td>${emp.department}</td>
                             <td>${emp.email}</td>
-                            <td><button class="secondary-btn" onclick="viewProfile('${emp.id}')">VIEW PROFILE</button></td>
+                            <td>
+                                ${emp.passwordResetRequested
+                                    ? '<span class="leave-status status-pending">REQUESTED</span>'
+                                    : (emp.forcePasswordChange
+                                        ? '<span class="leave-status status-approved">TEMP PASSWORD SET</span>'
+                                        : '<span class="leave-status">NO REQUEST</span>')}
+                            </td>
+                            <td>
+                                <div class="action-buttons-row">
+                                    <button class="secondary-btn" onclick="viewProfile('${escapeForAttr(emp.username)}')">VIEW PROFILE</button>
+                                    <button class="secondary-btn" onclick="generateTemporaryPassword('${escapeForAttr(emp.username)}')">SET TEMP PASSWORD</button>
+                                    <button class="danger-btn" onclick="deleteEmployee('${escapeForAttr(emp.username)}')">DELETE</button>
+                                </div>
+                            </td>
                         </tr>
                     `).join('');
 
                     document.getElementById('totalStaff').textContent = employees.length;
-                })
-                .catch(error => {
-                    console.error('Error fetching employees:', error);
-                    const tbody = document.getElementById('employeeTableBody');
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">Unable to load employee data from the server.</td></tr>';
-                    document.getElementById('totalStaff').textContent = '0';
-                });
+            } catch (error) {
+                console.error('Error fetching employees:', error);
+                const tbody = document.getElementById('employeeTableBody');
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666;">Unable to load workforce data from the server.</td></tr>';
+                document.getElementById('totalStaff').textContent = '0';
+            }
         }
 
-        function viewProfile(employeeId) {
-            alert('Open profile for ' + employeeId);
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
+
+        function escapeForAttr(value) {
+            return String(value == null ? '' : value).replace(/'/g, "\\'");
+        }
+
+        function closeEmployeeProfileModal() {
+            document.getElementById('employeeProfileModal').classList.add('hidden');
+        }
+
+        async function viewProfile(employeeId) {
+            try {
+                const response = await fetch(`/api/users/${encodeURIComponent(employeeId)}`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    notify('Unable to load employee profile.', 'error');
+                    return;
+                }
+
+                const profile = await response.json();
+                const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Employee';
+                const fields = [
+                    ['Full Name', fullName],
+                    ['Username', profile.username || '—'],
+                    ['Employee ID', profile.employeeId || '—'],
+                    ['Role', profile.role || '—'],
+                    ['Email', profile.emailId || '—'],
+                    ['Phone', profile.phoneNumber || '—'],
+                    ['Designation', profile.designation || '—'],
+                    ['Department', profile.department || '—'],
+                    ['Reporting To', profile.reportingEmployeeId || '—'],
+                    ['Location', profile.location || '—'],
+                    ['Joining Date', profile.joining || '—'],
+                    ['Nationality', profile.nationality || '—'],
+                    ['Blood Group', profile.bloodGroup || '—'],
+                    ['Marital Status', profile.maritalStatus || '—'],
+                    ['Date of Birth', profile.dob || '—'],
+                    ['Gender', profile.gender || '—'],
+                    ['Password Reset Requested', profile.passwordResetRequested ? 'Yes' : 'No'],
+                    ['Temporary Password Active', profile.forcePasswordChange ? 'Yes' : 'No'],
+                    ['Personal Email', profile.personalEmail || '—'],
+                    ['Address', profile.address || '—']
+                ];
+
+                document.getElementById('modalProfileGrid').innerHTML = fields.map(([label, value]) => `
+                    <div class="modal-profile-item">
+                        <span class="modal-profile-label">${escapeHtml(label)}</span>
+                        <span class="modal-profile-value">${escapeHtml(value)}</span>
+                    </div>
+                `).join('');
+
+                document.getElementById('employeeProfileModal').classList.remove('hidden');
+            } catch (error) {
+                console.error(error);
+                notify('Unable to load employee profile.', 'error');
+            }
+        }
+
+        async function deleteEmployee(employeeId) {
+            const canDelete = window.showActionConfirmDialog
+                ? await window.showActionConfirmDialog({
+                    title: 'Delete user?',
+                    message: `Delete user '${employeeId}'? This action cannot be undone.`,
+                    confirmText: 'Delete',
+                    cancelText: 'Cancel',
+                    danger: true
+                })
+                : false;
+
+            if (!canDelete) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/users/${encodeURIComponent(employeeId)}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+
+                const resultText = await response.text();
+                if (!response.ok) {
+                    notify(resultText || 'Failed to delete user record.', 'error');
+                    return;
+                }
+
+                closeEmployeeProfileModal();
+                await loadEmployees();
+                notify(resultText || 'User deleted successfully.', 'success');
+            } catch (error) {
+                console.error(error);
+                notify('Unable to delete user record.', 'error');
+            }
+        }
+
+        async function generateTemporaryPassword(employeeId) {
+            const confirmSet = window.showActionConfirmDialog
+                ? await window.showActionConfirmDialog({
+                    title: 'Set temporary password?',
+                    message: `Generate a random temporary password for '${employeeId}' and force password update on next login?`,
+                    confirmText: 'Generate',
+                    cancelText: 'Cancel'
+                })
+                : false;
+
+            if (!confirmSet) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/users/${encodeURIComponent(employeeId)}/generate-temporary-password`, {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    const message = await response.text();
+                    notify(message || 'Unable to generate temporary password.', 'error');
+                    return;
+                }
+
+                const result = await response.json();
+                notify('Temporary password generated. Share it securely with employee.', 'success');
+
+                if (window.showTemporaryPasswordDialog) {
+                    await window.showTemporaryPasswordDialog({
+                        username: result.username,
+                        password: result.temporaryPassword,
+                        copiedMessage: 'Copied'
+                    });
+                }
+
+                await loadEmployees();
+            } catch (error) {
+                console.error(error);
+                notify('Unable to generate temporary password.', 'error');
+            }
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeEmployeeProfileModal();
+            }
+        });
     </script>
 </body>
 </html>

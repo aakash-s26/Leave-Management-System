@@ -8,7 +8,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SecurityException;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
+import org.kumaran.config.JwtProperties;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -21,10 +21,9 @@ public class JwtUtil {
     private final long expirationMs;
     private Key signingKey;
 
-    public JwtUtil(@Value("${jwt.secret}") String secret,
-                   @Value("${jwt.expiration-ms:86400000}") long expirationMs) {
-        this.secret = secret;
-        this.expirationMs = expirationMs;
+    public JwtUtil(JwtProperties jwtProperties) {
+        this.secret = jwtProperties.getSecret();
+        this.expirationMs = jwtProperties.getExpirationMs();
     }
 
     @PostConstruct

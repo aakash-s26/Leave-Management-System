@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apply Leave - LeavePal</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="dashboard-styles.css">
 </head>
 <body>
@@ -112,6 +113,11 @@
                                 <input type="text" id="reason" placeholder="Briefly describe the reason for leave...">
                             </div>
 
+                            <div class="form-group" id="sickAttachmentGroup" style="display:none;">
+                                <label for="sickAttachment">MEDICAL ATTACHMENT (MANDATORY FOR SICK LEAVE 3+ DAYS)</label>
+                                <input type="file" id="sickAttachment" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx" />
+                            </div>
+
                             <div class="form-buttons">
                                 <button type="button" class="cancel-btn" onclick="cancelLeaveApplication()">Cancel</button>
                                 <button type="submit" class="apply-btn">Apply</button>
@@ -156,8 +162,9 @@
         </main>
     </div>
 
+    <script src="ui-notifications.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             const currentUser = JSON.parse(localStorage.getItem('loggedInUser')) || null;
             if (!currentUser || !currentUser.role || currentUser.role === 'guest') {
                 window.location.href = 'index.html';
@@ -169,175 +176,252 @@
             document.getElementById('sidebarProfileName').textContent = fullName;
             document.getElementById('sidebarEmployeeId').textContent = currentUser.employeeId || 'N/A';
             document.getElementById('sidebarEmail').textContent = currentUser.emailId || '—';
-            document.getElementById('sidebarReporting').textContent = currentUser.reporting || '—';
 
-            initializeLeaveBalances(currentUser);
-            updateLeaveSidebar(currentUser);
+            await syncCurrentUserManagerContext(currentUser);
+
+            await updateLeaveSidebar(currentUser);
 
             const applyLeaveForm = document.getElementById('applyLeaveForm');
             if (applyLeaveForm) {
-                applyLeaveForm.addEventListener('submit', function(e) {
+                applyLeaveForm.addEventListener('submit', async function(e) {
                     e.preventDefault();
-                    applyLeaveForCurrentUser(currentUser);
+                    await applyLeaveForCurrentUser(currentUser);
                 });
             }
         });
+
+        function normalizeKey(value) {
+            return String(value || '').trim().toLowerCase();
+        }
+
+        function getAuthHeaders() {
+            const user = JSON.parse(localStorage.getItem('loggedInUser')) || {};
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (user.token) {
+                headers['Authorization'] = `Bearer ${user.token}`;
+            }
+            return headers;
+        }
+
+        function getFullName(user) {
+            if (!user) {
+                return '';
+            }
+            return `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        }
+
+        async function refreshCurrentUserProfile(currentUser) {
+            if (!currentUser || !currentUser.username) {
+                return currentUser;
+            }
+
+            try {
+                const response = await fetch(`/api/users/${encodeURIComponent(currentUser.username)}`, {
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) {
+                    return currentUser;
+                }
+
+                const profile = await response.json();
+                return {
+                    ...currentUser,
+                    ...profile,
+                    token: currentUser.token || profile.token
+                };
+            } catch (error) {
+                console.error('Unable to refresh user profile:', error);
+                return currentUser;
+            }
+        }
+
+        function getManagerContext(currentUser) {
+            return {
+                id: currentUser.reportingEmployeeId || currentUser.reporting || '',
+                username: currentUser.reportingUsername || '',
+                email: currentUser.reportingEmail || '',
+                name: currentUser.reportingName || currentUser.reportingEmployeeId || currentUser.reporting || ''
+            };
+        }
+
+        async function syncCurrentUserManagerContext(currentUser) {
+            const reportingNode = document.getElementById('sidebarReporting');
+            const refreshed = await refreshCurrentUserProfile(currentUser);
+            currentUser.reportingEmployeeId = refreshed.reportingEmployeeId || currentUser.reportingEmployeeId || '';
+            currentUser.reportingUsername = refreshed.reportingUsername || currentUser.reportingUsername || '';
+            currentUser.reportingEmail = refreshed.reportingEmail || currentUser.reportingEmail || '';
+            currentUser.reportingName = refreshed.reportingName || currentUser.reportingName || '';
+            localStorage.setItem('loggedInUser', JSON.stringify(currentUser));
+
+            const reportingLabel = currentUser.reportingName
+                || currentUser.reportingEmployeeId
+                || currentUser.reportingUsername
+                || currentUser.reportingEmail
+                || currentUser.reporting
+                || '—';
+
+            reportingNode.textContent = reportingLabel;
+        }
 
         function logout() {
             localStorage.clear();
             window.location.href = 'index.html';
         }
 
+        function notify(message, type = 'info') {
+            if (window.showTopRightNotification) {
+                window.showTopRightNotification(message, type);
+            }
+        }
+
         function calculateDuration() {
             const fromDate = new Date(document.getElementById('fromDate').value);
             const toDate = new Date(document.getElementById('toDate').value);
+            let days = 0;
 
             if (fromDate && toDate && toDate >= fromDate) {
                 const timeDiff = toDate - fromDate;
-                const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-                document.getElementById('durationValue').textContent = days;
+                days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
             } else {
-                document.getElementById('durationValue').textContent = 0;
+                days = 0;
             }
+
+            document.getElementById('durationValue').textContent = days;
+            toggleSickAttachmentRequirement();
+        }
+
+        function toggleSickAttachmentRequirement() {
+            const leaveType = document.getElementById('leaveType').value;
+            const duration = parseInt(document.getElementById('durationValue').textContent, 10) || 0;
+            const group = document.getElementById('sickAttachmentGroup');
+            const input = document.getElementById('sickAttachment');
+
+            const required = leaveType === 'sick' && duration >= 3;
+            group.style.display = required ? 'block' : 'none';
+            input.required = required;
+
+            if (!required) {
+                input.value = '';
+            }
+        }
+
+        function readFileAsDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('Unable to read attachment file'));
+                reader.readAsDataURL(file);
+            });
         }
 
         function cancelLeaveApplication() {
             window.location.href = 'leave-tracker.html';
         }
 
-        function getUserKey(user) {
-            return user.username || user.emailId || user.employeeId || 'anonymous';
-        }
-
-        function initializeLeaveBalances(user) {
-            const key = getUserKey(user);
-            const store = JSON.parse(localStorage.getItem('leaveBalancesByUser') || '{}');
-            if (!store[key]) {
-                store[key] = {
-                    sick: { booked: 0 },
-                    casual: { booked: 0 },
-                    lop: { booked: 0 },
-                    joining: user.joining || ''
-                };
-                localStorage.setItem('leaveBalancesByUser', JSON.stringify(store));
-            }
-        }
-
-        function getLeaveBalances(user) {
-            const key = getUserKey(user);
-            const store = JSON.parse(localStorage.getItem('leaveBalancesByUser') || '{}');
-            return store[key] || { sick: { booked: 0 }, casual: { booked: 0 }, lop: { booked: 0 }, joining: user.joining || '' };
-        }
-
-        function saveLeaveBalances(user, balances) {
-            const key = getUserKey(user);
-            const store = JSON.parse(localStorage.getItem('leaveBalancesByUser') || '{}');
-            store[key] = balances;
-            store[key].joining = user.joining || store[key].joining || '';
-            localStorage.setItem('leaveBalancesByUser', JSON.stringify(store));
-        }
-
-        function calculateCycleAccrual(joiningDateString) {
-            const joinDate = parseFlexibleDate(joiningDateString);
-            if (!joinDate) {
-                return 0;
-            }
-
-            const today = new Date();
-            const currentYear = today.getMonth() < 3 ? today.getFullYear() - 1 : today.getFullYear();
-            const cycleStart = new Date(currentYear, 3, 1);
-            const cycleEnd = new Date(currentYear + 1, 2, 31);
-            const effectiveStart = joinDate > cycleStart ? joinDate : cycleStart;
-            if (effectiveStart > cycleEnd) {
-                return 0;
-            }
-
-            return monthsInclusive(effectiveStart, cycleEnd);
-        }
-
-        function parseFlexibleDate(value) {
-            if (!value) {
-                return null;
-            }
-            const parsed = new Date(value);
-            if (!isNaN(parsed.getTime())) {
-                return parsed;
-            }
-            const normalized = value.replace(/-/g, ' ').replace(/\s+/g, ' ');
-            const fallback = new Date(normalized);
-            return isNaN(fallback.getTime()) ? null : fallback;
-        }
-
-        function monthsInclusive(start, end) {
-            return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
-        }
-
-        function applyLeaveForCurrentUser(currentUser) {
+        async function applyLeaveForCurrentUser(currentUser) {
             const leaveType = document.getElementById('leaveType').value;
             const fromDate = document.getElementById('fromDate').value;
             const toDate = document.getElementById('toDate').value;
             const reason = document.getElementById('reason').value;
             const duration = parseInt(document.getElementById('durationValue').textContent, 10) || 0;
+            const attachmentInput = document.getElementById('sickAttachment');
+            await syncCurrentUserManagerContext(currentUser);
+            const managerContext = getManagerContext(currentUser);
 
-            if (!leaveType || duration <= 0 || !fromDate || !toDate) {
-                alert('Please select valid leave dates and type before submitting.');
+            if ((currentUser.role || '').toLowerCase() === 'employee'
+                && !managerContext.id
+                && !managerContext.username
+                && !managerContext.email) {
+                notify('Your reporting manager is not mapped. Please contact admin to link your manager before applying leave.', 'warning');
                 return;
             }
 
-            const userName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim();
-            const userApplications = JSON.parse(localStorage.getItem('leaveApplications') || '[]');
+            const managerId = managerContext.id;
+            const managerUsername = managerContext.username;
+            const managerEmail = managerContext.email;
+            const managerName = managerContext.name;
+
+            if (!leaveType || duration <= 0 || !fromDate || !toDate) {
+                notify('Please select valid leave dates and type before submitting.', 'warning');
+                return;
+            }
+
+            let sickAttachmentName = '';
+            let sickAttachmentData = '';
+            if (leaveType === 'sick' && duration >= 3) {
+                const file = attachmentInput.files && attachmentInput.files[0];
+                if (!file) {
+                    notify('Medical attachment is mandatory for sick leave of 3 or more days.', 'warning');
+                    return;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                    notify('Attachment size must be 5 MB or less.', 'warning');
+                    return;
+                }
+                try {
+                    sickAttachmentData = await readFileAsDataUrl(file);
+                    sickAttachmentName = file.name;
+                } catch (error) {
+                    console.error(error);
+                    notify('Unable to read the attachment file. Try again.', 'error');
+                    return;
+                }
+            }
+
             const leaveApplication = {
-                id: Date.now().toString(),
-                employeeId: currentUser.employeeId,
-                employeeName: userName || currentUser.emailId || currentUser.username,
+                reportingManagerId: managerId,
+                reportingManagerUsername: managerUsername,
+                reportingManagerEmail: managerEmail,
+                reportingManagerName: managerName,
                 leaveType: leaveType,
                 fromDate: fromDate,
                 toDate: toDate,
                 duration: duration,
                 reason: reason,
-                status: 'PENDING',
-                appliedDate: new Date().toISOString().split('T')[0]
+                sickAttachmentName,
+                sickAttachmentData
             };
 
-            userApplications.push(leaveApplication);
-            localStorage.setItem('leaveApplications', JSON.stringify(userApplications));
+            const response = await fetch('/api/leave-applications', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(leaveApplication)
+            });
+            if (!response.ok) {
+                const message = await response.text();
+                notify(message || 'Unable to apply leave right now.', 'error');
+                return;
+            }
 
-            updateLeaveBalances(currentUser, leaveType, duration);
-            updateLeaveSidebar(currentUser);
+            await updateLeaveSidebar(currentUser);
 
-            alert(`Leave applied successfully!\n\nLeave Type: ${leaveType}\nFrom: ${fromDate}\nTo: ${toDate}\nDuration: ${duration} Days\n\nYour leave was recorded and pending admin review.`);
+            notify(`Leave applied successfully!\nLeave Type: ${leaveType}\nFrom: ${fromDate}\nTo: ${toDate}\nDuration: ${duration} Days\nYour leave was recorded and sent to your manager for review.`, 'success');
             setTimeout(() => {
                 window.location.href = 'leave-tracker.html';
             }, 1000);
         }
 
-        function updateLeaveBalances(user, leaveType, duration) {
-            const balances = getLeaveBalances(user);
-            const accrual = calculateCycleAccrual(user.joining);
-            const available = Math.max(0, accrual - (balances[leaveType]?.booked || 0));
-
-            if (leaveType === 'lop') {
-                balances.lop.booked = (balances.lop.booked || 0) + duration;
-            } else {
-                const used = Math.min(duration, available);
-                balances[leaveType].booked = (balances[leaveType].booked || 0) + used;
-                const excess = duration - used;
-                if (excess > 0) {
-                    balances.lop.booked = (balances.lop.booked || 0) + excess;
-                }
+        async function updateLeaveSidebar(user) {
+            if (!user || !user.employeeId) {
+                return;
             }
-
-            saveLeaveBalances(user, balances);
-        }
-
-        function updateLeaveSidebar(user) {
-            const balances = getLeaveBalances(user);
-            const accrual = calculateCycleAccrual(user.joining);
-            const sickAvailable = Math.max(0, accrual - (balances.sick.booked || 0));
-            const casualAvailable = Math.max(0, accrual - (balances.casual.booked || 0));
-
-            document.getElementById('sidebarSickCount').textContent = `${String(sickAvailable).padStart(2, '0')} Left`;
-            document.getElementById('sidebarCasualCount').textContent = `${String(casualAvailable).padStart(2, '0')} Left`;
+            try {
+                const response = await fetch(`/api/leave-tracker/${encodeURIComponent(user.employeeId)}`, {
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) {
+                    return;
+                }
+                const tracker = await response.json();
+                const sickAvailable = Number(tracker.sickLeaveAvailable || 0);
+                const casualAvailable = Number(tracker.casualLeaveAvailable || 0);
+                document.getElementById('sidebarSickCount').textContent = `${String(sickAvailable).padStart(2, '0')} Left`;
+                document.getElementById('sidebarCasualCount').textContent = `${String(casualAvailable).padStart(2, '0')} Left`;
+            } catch (error) {
+                console.error('Unable to load leave balances:', error);
+            }
         }
 
         // Update active nav item

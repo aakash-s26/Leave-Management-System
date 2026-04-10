@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employee Leave Data - LeavePal</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="dashboard-styles.css">
 </head>
 <body>
@@ -41,6 +42,13 @@
                     </svg>
                     <span id="leaveTrackerText">Leave Tracker</span>
                 </a>
+                <a href="manager-leave-requests.html" id="managerLeaveRequestsNav" class="nav-item" style="display:none;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 11l3 3L22 4"></path>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                    </svg>
+                    Leave Requests
+                </a>
             </nav>
             <div class="sidebar-footer">
                 <button class="logout-btn" onclick="logout()">Logout</button>
@@ -61,11 +69,24 @@
                     </div>
                 </div>
                 <div class="dashboard-content">
-                    <div style="margin-bottom: 24px; padding: 18px 24px; background: linear-gradient(90deg, #b38a12, #d4af37); color: #fff; border-radius: 12px; font-weight: 700; letter-spacing: 0.03em; box-shadow: 0 12px 32px rgba(0,0,0,0.1);">
+                    <div class="page-header-row">
+                        <div>
+                            <h1 class="page-heading">Employee Leave Data</h1>
+                            <p class="page-subtitle">Review organization-wide leave balances and booked leave details.</p>
+                        </div>
+                        <div class="summary-card small-card" style="margin-bottom: 0;">
+                            <span>TOTAL STAFF</span>
+                            <strong id="leaveDataEmployeeCount">0</strong>
+                            <span class="metric-note">Current cycle</span>
+                        </div>
+                    </div>
+
+                    <div class="cycle-banner">
                         APRIL 2026 - MARCH 2027
                     </div>
-                    <div style="overflow-x:auto;">
-                        <table class="simple-table admin-tracker-table" style="min-width: 1200px;">
+
+                    <div class="table-card">
+                        <table class="employee-table admin-leave-data-table">
                             <thead>
                                 <tr>
                                     <th>NAME</th>
@@ -96,6 +117,22 @@
                     </div>
                     <div class="header-right">
                         <button class="apply-leave-btn" onclick="navigateToApplyLeave()">Apply Leave</button>
+                        <div class="notification-icon" id="leaveTrackerNotificationRoot">
+                            <button type="button" class="notification-bell" id="leaveTrackerNotificationToggle" aria-label="Notifications">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                </svg>
+                                <span class="notification-badge" id="leaveTrackerNotificationBadge">0</span>
+                            </button>
+                            <div class="notification-dropdown hidden" id="leaveTrackerNotificationDropdown">
+                                <div class="notification-dropdown-header">
+                                    <strong>Notifications</strong>
+                                    <button type="button" id="leaveTrackerMarkReadBtn">Mark all read</button>
+                                </div>
+                                <div class="notification-list" id="leaveTrackerNotificationList"></div>
+                            </div>
+                        </div>
                         <div class="user-profile">
                             <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23D4AF37'/%3E%3Ccircle cx='50' cy='35' r='20' fill='%23000'/%3E%3Cpath d='M20 90 Q20 70 50 70 Q80 70 80 90' fill='%23000'/%3E%3C/svg%3E" alt="Profile" class="profile-img">
                             <span class="user-name">Employee</span>
@@ -106,6 +143,11 @@
                 <!-- Leave Tracker Content -->
                 <div class="dashboard-content">
                     <h1 style="font-size: 28px; font-weight: 600; margin-bottom: 30px; color: #1a1a1a;">Leave Tracker</h1>
+
+                    <div class="notification-panel" id="leaveTrackerNotificationPanel">
+                        <h4>Recent Notifications</h4>
+                        <div class="notification-list" id="leaveTrackerNotificationPanelList"></div>
+                    </div>
                     
                     <div class="leave-tracker-container">
                         <!-- Applied Leave Card -->
@@ -194,12 +236,18 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        let currentSessionUser = null;
+        let employeeRefreshTimer = null;
+        let adminLeaveDataLoading = false;
+        let adminLeaveDataRefreshTimer = null;
+
+        document.addEventListener('DOMContentLoaded', async function() {
             const currentUser = JSON.parse(localStorage.getItem('loggedInUser')) || null;
             if (!currentUser || !currentUser.role || currentUser.role === 'guest') {
                 window.location.href = 'index.html';
                 return;
             }
+            currentSessionUser = currentUser;
 
             const fullName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || 'Employee';
             document.querySelectorAll('.user-name').forEach(el => el.textContent = fullName);
@@ -207,25 +255,37 @@
             // Set sidebar links based on role
             const dashboardLink = document.getElementById('dashboardLink');
             const leaveTrackerText = document.getElementById('leaveTrackerText');
+            const managerLeaveRequestsNav = document.getElementById('managerLeaveRequestsNav');
             if (currentUser.role.toLowerCase() === 'admin') {
                 dashboardLink.href = 'admin-dashboard.html';
                 leaveTrackerText.textContent = 'Employee Leave Data';
             } else {
                 dashboardLink.href = 'dashboard.html';
                 leaveTrackerText.textContent = 'Leave Tracker';
+                if (currentUser.role.toLowerCase() === 'manager' && managerLeaveRequestsNav) {
+                    managerLeaveRequestsNav.style.display = 'flex';
+                }
             }
 
             if (currentUser.role.toLowerCase() === 'admin') {
                 document.getElementById('adminLeaveTrackerSection').style.display = 'block';
                 document.title = 'Employee Leave Data - LeavePal';
-                renderAdminLeaveTracker();
+                await renderAdminLeaveTracker();
+                startAdminLeaveDataAutoRefresh();
             } else {
                 document.getElementById('employeeLeaveTrackerSection').style.display = 'block';
                 document.title = 'Leave Tracker - LeavePal';
-                initializeLeaveBalances(currentUser);
-                loadLeaveApplications(currentUser);
-                loadLeaveBalances(currentUser);
+                initializeNotificationBell(currentUser);
+                await renderNotificationViews(currentUser);
+                await loadLeaveApplications(currentUser);
+                await loadLeaveBalances(currentUser);
+                startEmployeeAutoRefresh(currentUser);
             }
+        });
+
+        window.addEventListener('beforeunload', function() {
+            stopEmployeeAutoRefresh();
+            stopAdminLeaveDataAutoRefresh();
         });
 
         function logout() {
@@ -237,39 +297,156 @@
             window.location.href = 'apply-leave.html';
         }
 
-        function getUserKey(user) {
-            return user.username || user.emailId || user.employeeId || 'anonymous';
-        }
-
-        function initializeLeaveBalances(user) {
-            const key = getUserKey(user);
-            const store = JSON.parse(localStorage.getItem('leaveBalancesByUser') || '{}');
-            if (!store[key]) {
-                store[key] = {
-                    sick: { booked: 0 },
-                    casual: { booked: 0 },
-                    lop: { booked: 0 },
-                    joining: user.joining || ''
-                };
-                localStorage.setItem('leaveBalancesByUser', JSON.stringify(store));
-            } else if (store[key].joining !== user.joining) {
-                store[key].joining = user.joining || '';
-                localStorage.setItem('leaveBalancesByUser', JSON.stringify(store));
+        function stopEmployeeAutoRefresh() {
+            if (employeeRefreshTimer) {
+                clearInterval(employeeRefreshTimer);
+                employeeRefreshTimer = null;
             }
         }
 
-        function getLeaveBalances(user) {
-            const key = getUserKey(user);
-            const store = JSON.parse(localStorage.getItem('leaveBalancesByUser') || '{}');
-            return store[key] || { sick: { booked: 0 }, casual: { booked: 0 }, lop: { booked: 0 }, joining: user.joining || '' };
+        function startEmployeeAutoRefresh(currentUser) {
+            if (!currentUser || (currentUser.role || '').toLowerCase() === 'admin') {
+                return;
+            }
+
+            stopEmployeeAutoRefresh();
+
+            employeeRefreshTimer = setInterval(async function() {
+                await refreshEmployeeLeaveStatus(currentUser);
+            }, 15000);
+
+            document.addEventListener('visibilitychange', async function() {
+                if (!document.hidden) {
+                    await refreshEmployeeLeaveStatus(currentUser);
+                }
+            });
+
+            window.addEventListener('focus', async function() {
+                await refreshEmployeeLeaveStatus(currentUser);
+            });
         }
 
-        function saveLeaveBalances(user, balances) {
-            const key = getUserKey(user);
-            const store = JSON.parse(localStorage.getItem('leaveBalancesByUser') || '{}');
-            store[key] = balances;
-            store[key].joining = user.joining || store[key].joining || '';
-            localStorage.setItem('leaveBalancesByUser', JSON.stringify(store));
+        function startAdminLeaveDataAutoRefresh() {
+            stopAdminLeaveDataAutoRefresh();
+            adminLeaveDataRefreshTimer = setInterval(function() {
+                renderAdminLeaveTracker();
+            }, 20000);
+
+            window.addEventListener('focus', function() {
+                renderAdminLeaveTracker();
+            });
+
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    renderAdminLeaveTracker();
+                }
+            });
+        }
+
+        function stopAdminLeaveDataAutoRefresh() {
+            if (adminLeaveDataRefreshTimer) {
+                clearInterval(adminLeaveDataRefreshTimer);
+                adminLeaveDataRefreshTimer = null;
+            }
+        }
+
+        async function refreshEmployeeLeaveStatus(currentUser) {
+            await Promise.all([
+                loadLeaveApplications(currentUser),
+                loadLeaveBalances(currentUser),
+                renderNotificationViews(currentUser)
+            ]);
+        }
+
+        function getUserIdentifiers(user) {
+            if (!user) {
+                return [];
+            }
+            return Array.from(new Set([
+                user.employeeId,
+                user.username,
+                user.emailId
+            ].filter(Boolean)));
+        }
+
+        function normalizeKey(value) {
+            return String(value || '').trim().toLowerCase();
+        }
+
+        async function getNotificationsForUser() {
+            const response = await fetch('/api/notifications/my', {
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (!response.ok) {
+                return [];
+            }
+            return await response.json();
+        }
+
+        async function markAllNotificationsRead() {
+            await fetch('/api/notifications/mark-all-read', {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+        }
+
+        function initializeNotificationBell(user) {
+            const root = document.getElementById('leaveTrackerNotificationRoot');
+            const toggle = document.getElementById('leaveTrackerNotificationToggle');
+            const dropdown = document.getElementById('leaveTrackerNotificationDropdown');
+            const markRead = document.getElementById('leaveTrackerMarkReadBtn');
+
+            if (!root || !toggle || !dropdown || !markRead) {
+                return;
+            }
+
+            toggle.addEventListener('click', function(event) {
+                event.stopPropagation();
+                dropdown.classList.toggle('hidden');
+            });
+
+            markRead.addEventListener('click', async function() {
+                await markAllNotificationsRead();
+                await renderNotificationViews(user);
+            });
+
+            document.addEventListener('click', function(event) {
+                if (root.contains(event.target)) {
+                    return;
+                }
+                dropdown.classList.add('hidden');
+            });
+        }
+
+        async function renderNotificationViews(user) {
+            const badge = document.getElementById('leaveTrackerNotificationBadge');
+            const dropdownList = document.getElementById('leaveTrackerNotificationList');
+            const panelList = document.getElementById('leaveTrackerNotificationPanelList');
+
+            const notifications = await getNotificationsForUser(user);
+            const unread = notifications.filter(item => !item.read).length;
+            if (badge) {
+                badge.textContent = String(unread);
+                badge.style.display = unread > 0 ? 'flex' : 'none';
+            }
+
+            const html = notifications.length
+                ? notifications.slice(0, 20).map(item => `
+                    <div class="notification-item ${item.read ? '' : 'unread'}">
+                        <div class="notification-item-title">${escapeHtml(item.title || 'Notification')}</div>
+                        <div class="notification-item-message">${escapeHtml(item.message || '')}</div>
+                        <div class="notification-item-time">${escapeHtml(formatTimeAgo(item.createdAt))}</div>
+                    </div>
+                `).join('')
+                : '<div class="notification-empty">No notifications yet.</div>';
+
+            if (dropdownList) {
+                dropdownList.innerHTML = html;
+            }
+            if (panelList) {
+                panelList.innerHTML = html;
+            }
         }
 
         function calculateCycleAccrual(joiningDateString) {
@@ -313,46 +490,90 @@
             return headers;
         }
 
-        function renderAdminLeaveTracker() {
-            fetch('/api/users', {
-                headers: getAuthHeaders()
-            })
-                .then(response => response.json())
-                .then(users => {
-                    const employees = users.filter(user => user.role && user.role.toLowerCase() === 'employee');
-                    const leaveApplications = JSON.parse(localStorage.getItem('leaveApplications') || '[]');
-                    const tbody = document.getElementById('leaveTrackerTableBody');
+        async function renderAdminLeaveTracker() {
+            if (adminLeaveDataLoading) {
+                return;
+            }
 
-                    if (!tbody) {
-                        return;
-                    }
-                    if (employees.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#666;">No employee records found.</td></tr>';
-                        return;
-                    }
+            adminLeaveDataLoading = true;
+            const tbody = document.getElementById('leaveTrackerTableBody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#666;">Loading employee leave data...</td></tr>';
+            }
 
-                    tbody.innerHTML = employees.map(employee => {
-                        const stats = calculateEmployeeLeaveStats(employee, leaveApplications);
-                        const name = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.emailId || employee.username || 'N/A';
-                        return `
-                            <tr>
-                                <td>${name}</td>
-                                <td>${employee.employeeId || employee.username || 'N/A'}</td>
-                                <td>${employee.designation || '—'}</td>
-                                <td>${employee.department || '—'}</td>
-                                <td>${String(stats.sickAvailable).padStart(2, '0')}</td>
-                                <td>${String(stats.casualAvailable).padStart(2, '0')}</td>
-                                <td>--</td>
-                                <td>${String(stats.sickBooked).padStart(2, '0')}</td>
-                                <td>${String(stats.casualBooked).padStart(2, '0')}</td>
-                                <td>${String(stats.lopBooked).padStart(2, '0')}</td>
-                            </tr>
-                        `;
-                    }).join('');
-                })
-                .catch(error => {
-                    console.error('Error loading admin leave tracker:', error);
+            try {
+                const [usersResponse, leaveResponse] = await Promise.all([
+                    fetch('/api/users', {
+                        headers: getAuthHeaders(),
+                        cache: 'no-store'
+                    }),
+                    fetch('/api/leave-applications/all', {
+                        headers: getAuthHeaders(),
+                        cache: 'no-store'
+                    })
+                ]);
+
+                if (usersResponse.status === 401 || usersResponse.status === 403) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                if (!usersResponse.ok) {
+                    const message = await usersResponse.text();
+                    if (tbody) {
+                        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#666;">${escapeHtml(message || 'Unable to load workforce records.')}</td></tr>`;
+                    }
+                    return;
+                }
+
+                const users = await usersResponse.json();
+                const employees = users.filter(user => {
+                    const role = (user.role || '').toLowerCase();
+                    return role === 'employee' || role === 'manager';
                 });
+
+                const leaveApplications = leaveResponse.ok ? await leaveResponse.json() : [];
+                const countEl = document.getElementById('leaveDataEmployeeCount');
+
+                if (countEl) {
+                    countEl.textContent = employees.length;
+                }
+
+                if (!tbody) {
+                    return;
+                }
+                if (employees.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#666;">No workforce records found.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = employees.map(employee => {
+                    const stats = calculateEmployeeLeaveStats(employee, leaveApplications);
+                    const name = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.emailId || employee.username || 'N/A';
+                    const roleLabel = String(employee.role || '—').toLowerCase();
+                    return `
+                        <tr>
+                            <td>${escapeHtml(name)}</td>
+                            <td>${escapeHtml(employee.employeeId || employee.username || 'N/A')}</td>
+                            <td>${escapeHtml(roleLabel ? roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1) : '—')}</td>
+                            <td>${escapeHtml(employee.department || '—')}</td>
+                            <td>${String(stats.sickAvailable).padStart(2, '0')}</td>
+                            <td>${String(stats.casualAvailable).padStart(2, '0')}</td>
+                            <td>--</td>
+                            <td>${String(stats.sickBooked).padStart(2, '0')}</td>
+                            <td>${String(stats.casualBooked).padStart(2, '0')}</td>
+                            <td>${String(stats.lopBooked).padStart(2, '0')}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading admin leave tracker:', error);
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#666;">Unable to load employee leave data from server.</td></tr>';
+                }
+            } finally {
+                adminLeaveDataLoading = false;
+            }
         }
 
         function calculateEmployeeLeaveStats(employee, leaveApplications) {
@@ -361,9 +582,32 @@
             let casualBooked = 0;
             let lopBooked = 0;
 
+            const employeeKeys = new Set(
+                [employee.employeeId, employee.username, employee.emailId]
+                    .map(normalizeKey)
+                    .filter(Boolean)
+            );
+
             const employeeApps = leaveApplications
-                .filter(app => app.employeeId === employee.employeeId)
-                .sort((a, b) => (a.appliedDate || '').localeCompare(b.appliedDate || '') || (a.id || '').localeCompare(b.id || ''));
+                .filter(app => {
+                    if (String(app.status || '').toUpperCase() !== 'APPROVED') {
+                        return false;
+                    }
+                    const appKeys = [app.employeeId, app.username, app.emailId]
+                        .map(normalizeKey)
+                        .filter(Boolean);
+                    return appKeys.some(key => employeeKeys.has(key));
+                })
+                .sort((a, b) => {
+                    const dateCompare = String(a.appliedDate || '').localeCompare(String(b.appliedDate || ''));
+                    if (dateCompare !== 0) {
+                        return dateCompare;
+                    }
+
+                    const aId = Number(a.id || 0);
+                    const bId = Number(b.id || 0);
+                    return aId - bId;
+                });
 
             employeeApps.forEach(app => {
                 const duration = Number(app.duration) || 0;
@@ -391,11 +635,24 @@
             };
         }
 
-        function loadLeaveApplications(currentUser) {
-            const leaveApplications = JSON.parse(localStorage.getItem('leaveApplications')) || [];
-            const userApplications = leaveApplications.filter(app => app.employeeId === currentUser.employeeId);
+        async function loadLeaveApplications(currentUser) {
+            const response = await fetch('/api/leave-applications/my', {
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            const leaveApplications = response.ok ? await response.json() : [];
+            const ids = new Set(getUserIdentifiers(currentUser).map(normalizeKey).filter(Boolean));
+            const userApplications = leaveApplications.filter(app =>
+                ids.has(normalizeKey(app.employeeId))
+                || ids.has(normalizeKey(app.username))
+                || ids.has(normalizeKey(app.emailId))
+            );
             const tbody = document.querySelector('.leave-table tbody');
             if (tbody) {
+                if (!userApplications.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">No leave requests found.</td></tr>';
+                    return;
+                }
                 tbody.innerHTML = userApplications.map(app => `
                     <tr>
                         <td>
@@ -407,17 +664,23 @@
                         <td>${formatDate(app.fromDate)}</td>
                         <td>${formatDate(app.toDate)}</td>
                         <td>${app.duration}</td>
-                        <td><span class="leave-status status-${app.status.toLowerCase()}">${app.status}</span></td>
+                        <td><span class="leave-status status-${(app.status || 'PENDING').toLowerCase()}">${app.status || 'PENDING'}</span></td>
                     </tr>
                 `).join('');
             }
         }
 
-        function loadLeaveBalances(currentUser) {
-            const balances = getLeaveBalances(currentUser);
-            const accrual = calculateCycleAccrual(currentUser.joining);
-            const availableSick = Math.max(0, accrual - (balances.sick.booked || 0));
-            const availableCasual = Math.max(0, accrual - (balances.casual.booked || 0));
+        async function loadLeaveBalances(currentUser) {
+            const response = await fetch(`/api/leave-tracker/${encodeURIComponent(currentUser.employeeId)}`, {
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (!response.ok) {
+                return;
+            }
+            const balances = await response.json();
+            const availableSick = Number(balances.sickLeaveAvailable || 0);
+            const availableCasual = Number(balances.casualLeaveAvailable || 0);
 
             const sickAvailable = document.getElementById('sickAvailableCount');
             const sickBooked = document.getElementById('sickBookedCount');
@@ -426,10 +689,10 @@
             const lopBooked = document.getElementById('lopBookedCount');
 
             if (sickAvailable) sickAvailable.textContent = String(availableSick).padStart(2, '0');
-            if (sickBooked) sickBooked.textContent = String(balances.sick.booked || 0).padStart(2, '0');
+            if (sickBooked) sickBooked.textContent = String(balances.sickLeaveBooked || 0).padStart(2, '0');
             if (casualAvailable) casualAvailable.textContent = String(availableCasual).padStart(2, '0');
-            if (casualBooked) casualBooked.textContent = String(balances.casual.booked || 0).padStart(2, '0');
-            if (lopBooked) lopBooked.textContent = String(balances.lop.booked || 0).padStart(2, '0');
+            if (casualBooked) casualBooked.textContent = String(balances.casualLeaveBooked || 0).padStart(2, '0');
+            if (lopBooked) lopBooked.textContent = String(balances.lossOfPayBooked || 0).padStart(2, '0');
         }
 
         function getLeaveTypeColor(leaveType) {
@@ -456,6 +719,32 @@
                 return dateString || '—';
             }
             return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+        }
+
+        function formatTimeAgo(isoDate) {
+            if (!isoDate) {
+                return 'Just now';
+            }
+            const diffMs = Date.now() - new Date(isoDate).getTime();
+            const mins = Math.max(1, Math.floor(diffMs / 60000));
+            if (mins < 60) {
+                return `${mins} min ago`;
+            }
+            const hours = Math.floor(mins / 60);
+            if (hours < 24) {
+                return `${hours} hr ago`;
+            }
+            const days = Math.floor(hours / 24);
+            return `${days} day${days > 1 ? 's' : ''} ago`;
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         // Update active nav item

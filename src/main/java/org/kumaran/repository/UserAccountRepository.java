@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface UserAccountRepository extends JpaRepository<UserAccount, Long> {
     Optional<UserAccount> findByUsername(String username);
     Optional<UserAccount> findByEmployeeId(String employeeId);
+    Optional<UserAccount> findByEmailId(String emailId);
+    Optional<UserAccount> findByPersonalEmail(String personalEmail);
 }

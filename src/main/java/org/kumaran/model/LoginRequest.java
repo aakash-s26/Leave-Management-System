@@ -4,13 +4,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "Login request payload")
 public class LoginRequest {
-    @Schema(description = "Username or email for login", example = "admin", required = true)
+    @Schema(description = "Username or email for login", example = "admin", requiredMode = Schema.RequiredMode.REQUIRED)
     private String username;
 
-    @Schema(description = "User password", example = "password123", required = true)
+    @Schema(description = "User password", example = "password123", requiredMode = Schema.RequiredMode.REQUIRED)
     private String password;
 
-    @Schema(description = "User role (admin or employee)", example = "admin", allowableValues = {"admin", "employee"}, required = true)
+    @Schema(description = "Login tab role (admin or workforce). Workforce allows manager/employee accounts.", example = "workforce", allowableValues = {"admin", "workforce", "manager", "employee"}, requiredMode = Schema.RequiredMode.REQUIRED)
     private String role;
 
     public String getUsername() {

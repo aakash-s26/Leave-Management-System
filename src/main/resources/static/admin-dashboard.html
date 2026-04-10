@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LeavePal</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="dashboard-styles.css">
 </head>
 <body>
@@ -53,13 +54,21 @@
                     <h1>Welcome Back, Admin</h1>
                 </div>
                 <div class="admin-header-actions">
-                    <button class="icon-button" aria-label="Notifications">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                        </svg>
-                        <span class="notification-badge">3</span>
-                    </button>
+                    <div class="notification-icon" id="adminResetNotificationRoot">
+                        <button class="icon-button" id="adminResetNotificationToggle" aria-label="Notifications">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                            <span class="notification-badge" id="adminResetBadge" style="display:none;">0</span>
+                        </button>
+                        <div class="notification-dropdown hidden" id="adminResetDropdown">
+                            <div class="notification-dropdown-header">
+                                <strong>Password Reset Requests</strong>
+                            </div>
+                            <div class="notification-list" id="adminResetRequestList"></div>
+                        </div>
+                    </div>
                     <div class="admin-user-card">
                         <div class="user-avatar-large"></div>
                         <div>
@@ -107,7 +116,6 @@
                         <div class="profile-badge">ADMINISTRATOR</div>
                         <div class="profile-actions">
                             <button class="small-icon-btn" onclick="navigateToEditProfile()">✎</button>
-                            <button class="small-icon-btn">⋮</button>
                         </div>
                     </div>
                 </section>
@@ -147,10 +155,16 @@
         </main>
     </div>
 
+    <script src="ui-notifications.js"></script>
     <script>
+        let adminDashboardRefreshTimer = null;
+        let adminResetRequests = [];
+        let adminDashboardLoading = false;
+
         document.addEventListener('DOMContentLoaded', function() {
             const user = JSON.parse(localStorage.getItem('loggedInUser')) || { role: 'guest' };
-            if (user.role !== 'admin') {
+            const role = String(user.role || '').toLowerCase();
+            if (role !== 'admin') {
                 window.location.href = 'index.html';
                 return;
             }
@@ -162,7 +176,10 @@
             document.getElementById('adminId').textContent = user.employeeId || user.username || 'ADM-2024-001';
             document.getElementById('adminEmail').textContent = user.emailId || user.username || 'admin@leavepal.com';
 
+            initializeResetNotificationBell();
+
             loadDashboardData();
+            scheduleDashboardAutoRefresh();
         });
 
         function logout() {
@@ -185,34 +202,257 @@
             window.location.href = 'edit-profile.html';
         }
 
-        function loadDashboardData() {
-            fetch('/api/users', {
-                headers: getAuthHeaders()
-            })
-                .then(response => response.json())
-                .then(data => {
-                    const employees = data.filter(user => user.role && user.role.toLowerCase() === 'employee');
-                    document.getElementById('totalStaffCount').textContent = employees.length;
+        function notify(message, type = 'info') {
+            if (window.showTopRightNotification) {
+                window.showTopRightNotification(message, type);
+            }
+        }
 
-                    const pendingApplications = JSON.parse(localStorage.getItem('leaveApplications') || '[]')
-                        .filter(app => employees.some(employee => employee.employeeId === app.employeeId) && app.status === 'PENDING');
-                    document.getElementById('pendingRequestsCount').textContent = pendingApplications.length;
+        function normalizeKey(value) {
+            return String(value || '').trim().toLowerCase();
+        }
+
+        function parseEmployeeSequence(employeeId) {
+            const match = String(employeeId || '').match(/(\d+)$/);
+            return match ? Number(match[1]) : 0;
+        }
+
+        function getRecordTime(user) {
+            const dateValue = user && user.joining ? Date.parse(user.joining) : NaN;
+            return Number.isNaN(dateValue) ? 0 : dateValue;
+        }
+
+        function scheduleDashboardAutoRefresh() {
+            if (adminDashboardRefreshTimer) {
+                window.clearInterval(adminDashboardRefreshTimer);
+            }
+
+            adminDashboardRefreshTimer = window.setInterval(() => {
+                loadDashboardData();
+            }, 15000);
+
+            window.addEventListener('focus', loadDashboardData);
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible') {
+                    loadDashboardData();
+                }
+            });
+            window.addEventListener('beforeunload', function() {
+                if (adminDashboardRefreshTimer) {
+                    window.clearInterval(adminDashboardRefreshTimer);
+                    adminDashboardRefreshTimer = null;
+                }
+            });
+        }
+
+        function initializeResetNotificationBell() {
+            const toggle = document.getElementById('adminResetNotificationToggle');
+            const dropdown = document.getElementById('adminResetDropdown');
+            const list = document.getElementById('adminResetRequestList');
+
+            if (!toggle || !dropdown || !list) {
+                return;
+            }
+
+            toggle.addEventListener('click', function(event) {
+                event.stopPropagation();
+                dropdown.classList.toggle('hidden');
+            });
+
+            list.addEventListener('click', async function(event) {
+                const button = event.target.closest('button[data-username]');
+                if (!button) {
+                    return;
+                }
+                const username = button.getAttribute('data-username');
+                await generateTemporaryPasswordForUser(username);
+            });
+
+            document.addEventListener('click', function(event) {
+                const root = document.getElementById('adminResetNotificationRoot');
+                if (!root || root.contains(event.target)) {
+                    return;
+                }
+                dropdown.classList.add('hidden');
+            });
+        }
+
+        function renderResetNotifications() {
+            const badge = document.getElementById('adminResetBadge');
+            const list = document.getElementById('adminResetRequestList');
+
+            if (!badge || !list) {
+                return;
+            }
+
+            badge.textContent = String(adminResetRequests.length);
+            badge.style.display = adminResetRequests.length ? 'flex' : 'none';
+
+            if (!adminResetRequests.length) {
+                list.innerHTML = '<div class="notification-empty">No password reset requests.</div>';
+                return;
+            }
+
+            list.innerHTML = adminResetRequests.map(user => {
+                const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username;
+                return `
+                    <div class="notification-item unread">
+                        <div class="notification-item-title">${escapeHtml(fullName)} (${escapeHtml(user.role || 'employee')})</div>
+                        <div class="notification-item-message">Requested password reset. Click below to generate a temporary password.</div>
+                        <div class="notification-item-time">${escapeHtml(formatResetRequestTime(user.passwordResetRequestedAt))}</div>
+                        <div style="margin-top:8px;">
+                            <button class="secondary-btn" type="button" data-username="${escapeForAttr(user.username)}">Generate Temporary Password</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatResetRequestTime(value) {
+            if (!value) {
+                return 'Requested recently';
+            }
+            const date = new Date(value);
+            if (isNaN(date.getTime())) {
+                return 'Requested recently';
+            }
+            return date.toLocaleString();
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function escapeForAttr(value) {
+            return String(value == null ? '' : value).replace(/'/g, "\\'");
+        }
+
+        async function generateTemporaryPasswordForUser(username) {
+            try {
+                const response = await fetch(`/api/users/${encodeURIComponent(username)}/generate-temporary-password`, {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    const message = await response.text();
+                    notify(message || 'Unable to generate temporary password.', 'error');
+                    return;
+                }
+
+                const result = await response.json();
+                notify('Temporary password generated. Share it securely with the employee.', 'success');
+
+                if (window.showTemporaryPasswordDialog) {
+                    await window.showTemporaryPasswordDialog({
+                        username: result.username,
+                        password: result.temporaryPassword,
+                        copiedMessage: 'Copied'
+                    });
+                }
+
+                await loadDashboardData();
+            } catch (error) {
+                console.error(error);
+                notify('Unable to generate temporary password.', 'error');
+            }
+        }
+
+        async function loadDashboardData() {
+            if (adminDashboardLoading) {
+                return;
+            }
+
+            adminDashboardLoading = true;
+            try {
+                const usersResponse = await fetch('/api/users', {
+                    headers: getAuthHeaders(),
+                    cache: 'no-store'
+                });
+
+                if (usersResponse.status === 401 || usersResponse.status === 403) {
+                    notify('Session expired. Please login again.', 'warning');
+                    setTimeout(() => {
+                        logout();
+                    }, 700);
+                    return;
+                }
+
+                if (!usersResponse.ok) {
+                    const message = await usersResponse.text();
+                    notify(message || 'Unable to load admin dashboard data.', 'error');
+                    return;
+                }
+
+                const data = await usersResponse.json();
+
+                    adminResetRequests = data.filter(user => {
+                        const role = (user.role || '').toLowerCase();
+                        return (role === 'employee' || role === 'manager') && !!user.passwordResetRequested;
+                    }).sort((a, b) => {
+                        const aTime = Date.parse(a.passwordResetRequestedAt || '') || 0;
+                        const bTime = Date.parse(b.passwordResetRequestedAt || '') || 0;
+                        return bTime - aTime;
+                    });
+                    renderResetNotifications();
+
+                    const workforce = data.filter(user => {
+                        const role = (user.role || '').toLowerCase();
+                        return role === 'employee' || role === 'manager';
+                    });
+                    document.getElementById('totalStaffCount').textContent = workforce.length;
+
+                    const workforceKeys = new Set(
+                        workforce.flatMap(employee => [employee.employeeId, employee.username, employee.emailId])
+                            .map(normalizeKey)
+                            .filter(Boolean)
+                    );
+
+                    const pendingNode = document.getElementById('pendingRequestsCount');
+                    if (pendingNode) {
+                        const leaveResponse = await fetch('/api/leave-applications/all', {
+                            headers: getAuthHeaders(),
+                            cache: 'no-store'
+                        });
+                        const applications = leaveResponse.ok ? await leaveResponse.json() : [];
+                        const pendingApplications = applications.filter(app => {
+                            const appKeys = [app.employeeId, app.username, app.emailId]
+                                .map(normalizeKey)
+                                .filter(Boolean);
+                            const belongsToWorkforce = appKeys.some(key => workforceKeys.has(key));
+                            return belongsToWorkforce && String(app.status || 'PENDING').toUpperCase() === 'PENDING';
+                        });
+                        pendingNode.textContent = pendingApplications.length;
+                    }
 
                     const uniqueDepartments = new Set();
-                    employees.forEach(user => {
+                    workforce.forEach(user => {
                         if (user.department) {
                             uniqueDepartments.add(user.department);
                         }
                     });
                     document.getElementById('activeDeptCount').textContent = uniqueDepartments.size;
 
-                    const newHires = employees
-                        .filter(user => user.joining)
-                        .sort((a, b) => new Date(b.joining) - new Date(a.joining))
+                    const newHires = workforce
+                        .sort((a, b) => {
+                            const byDate = getRecordTime(b) - getRecordTime(a);
+                            if (byDate !== 0) {
+                                return byDate;
+                            }
+                            return parseEmployeeSequence(b.employeeId) - parseEmployeeSequence(a.employeeId);
+                        })
                         .slice(0, 3);
 
                     const tbody = document.getElementById('newHiresTableBody');
-                    tbody.innerHTML = newHires.map(user => `
+                    if (!newHires.length) {
+                        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#666;">No recent hires found.</td></tr>';
+                    } else {
+                        tbody.innerHTML = newHires.map(user => `
                         <tr>
                             <td>${user.firstName || ''} ${user.lastName || ''}</td>
                             <td>${user.department || '—'}</td>
@@ -222,23 +462,26 @@
                                 day: '2-digit'
                             }) : '—'}</td>
                         </tr>
-                    `).join('');
+                        `).join('');
+                    }
 
                     const deptContainer = document.querySelector('.departments-card');
                     const existingItems = deptContainer.querySelectorAll('.dept-item');
                     existingItems.forEach(item => item.remove());
 
                     Array.from(uniqueDepartments).slice(0, 3).forEach(dept => {
-                        const count = employees.filter(user => user.department === dept).length;
+                        const count = workforce.filter(user => user.department === dept).length;
                         const div = document.createElement('div');
                         div.className = 'dept-item';
                         div.innerHTML = `<span>${dept}</span><strong>${count}</strong>`;
                         deptContainer.appendChild(div);
                     });
-                })
-                .catch(error => {
-                    console.error('Error loading dashboard data:', error);
-                });
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                notify('Unable to load admin dashboard data from server.', 'error');
+            } finally {
+                adminDashboardLoading = false;
+            }
         }
     </script>
 </body>

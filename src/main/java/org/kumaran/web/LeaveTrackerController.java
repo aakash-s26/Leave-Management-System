@@ -5,7 +5,7 @@ import org.kumaran.model.LeaveTrackerData;
 import org.kumaran.model.UserAccount;
 import org.kumaran.repository.LeaveTrackerRepository;
 import org.kumaran.repository.UserAccountRepository;
-import org.kumaran.security.JwtUtil;
+import org.kumaran.security.JwtRequestHelper;
 import org.kumaran.service.LeaveTrackerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +20,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @RestController
@@ -29,13 +30,13 @@ public class LeaveTrackerController {
     private final LeaveTrackerRepository leaveTrackerRepository;
     private final UserAccountRepository userRepository;
     private final LeaveTrackerService leaveTrackerService;
-    private final JwtUtil jwtUtil;
+    private final JwtRequestHelper jwtHelper;
 
-    public LeaveTrackerController(LeaveTrackerRepository leaveTrackerRepository, UserAccountRepository userRepository, LeaveTrackerService leaveTrackerService, JwtUtil jwtUtil) {
+    public LeaveTrackerController(LeaveTrackerRepository leaveTrackerRepository, UserAccountRepository userRepository, LeaveTrackerService leaveTrackerService, JwtRequestHelper jwtHelper) {
         this.leaveTrackerRepository = leaveTrackerRepository;
         this.userRepository = userRepository;
         this.leaveTrackerService = leaveTrackerService;
-        this.jwtUtil = jwtUtil;
+        this.jwtHelper = jwtHelper;
     }
 
     @PostMapping("/sync-all")
@@ -49,7 +50,7 @@ public class LeaveTrackerController {
             content = @Content(mediaType = "text/plain"))
     })
     public ResponseEntity<?> syncAllLeaveTrackers(HttpServletRequest request) {
-        if (!isAdmin(request)) {
+        if (!jwtHelper.isAdmin(request)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
 
@@ -81,8 +82,12 @@ public class LeaveTrackerController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Employee not found");
         }
 
-        if (!isAdmin(httpRequest) && !equalsIgnoreCase(employeeOpt.get().getUsername(), getUsernameFromRequest(httpRequest))) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        if (!jwtHelper.isAdmin(httpRequest)) {
+            String empUsername = employeeOpt.get().getUsername();
+            String callerUsername = jwtHelper.extractUsername(httpRequest);
+            if (empUsername == null || !empUsername.equalsIgnoreCase(callerUsername)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+            }
         }
 
         UserAccount employee = employeeOpt.get();
@@ -134,17 +139,25 @@ public class LeaveTrackerController {
         @Parameter(description = "Employee ID", required = true, example = "LP-001")
         @PathVariable String employeeId,
         HttpServletRequest request) {
-        Optional<LeaveTrackerData> tracker = leaveTrackerRepository.findByEmployeeId(employeeId);
-        if (tracker.isEmpty()) {
+        Optional<UserAccount> employee = userRepository.findByEmployeeId(employeeId);
+        if (employee.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Leave tracker not found for employee: " + employeeId);
         }
 
-        Optional<UserAccount> employee = userRepository.findByEmployeeId(employeeId);
-        if (employee.isPresent() && !isAdmin(request) && !equalsIgnoreCase(employee.get().getUsername(), getUsernameFromRequest(request))) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        if (!jwtHelper.isAdmin(request)) {
+            String empUsername = employee.get().getUsername();
+            String callerUsername = jwtHelper.extractUsername(request);
+            if (empUsername == null || !empUsername.equalsIgnoreCase(callerUsername)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+            }
         }
 
-        return ResponseEntity.ok(tracker.get());
+        LeaveTrackerData tracker = leaveTrackerService.getLeaveTrackerForEmployee(employeeId);
+        if (tracker == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Leave tracker not found for employee: " + employeeId);
+        }
+
+        return ResponseEntity.ok(tracker);
     }
 
     @GetMapping("/department/{department}")
@@ -162,7 +175,7 @@ public class LeaveTrackerController {
         @Parameter(description = "Department name", required = true, example = "Engineering")
         @PathVariable String department,
         HttpServletRequest request) {
-        if (!isAdmin(request)) {
+        if (!jwtHelper.isAdmin(request)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
 
@@ -183,7 +196,7 @@ public class LeaveTrackerController {
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = LeaveTrackerData.class)))
     })
     public ResponseEntity<List<LeaveTrackerData>> getAllLeaveTrackers(HttpServletRequest request) {
-        if (!isAdmin(request)) {
+        if (!jwtHelper.isAdmin(request)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -207,7 +220,7 @@ public class LeaveTrackerController {
         @PathVariable String employeeId,
         @RequestBody LeaveTrackerData request,
         HttpServletRequest httpRequest) {
-        if (!isAdmin(httpRequest)) {
+        if (!jwtHelper.isAdmin(httpRequest)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
 
@@ -216,7 +229,7 @@ public class LeaveTrackerController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Leave tracker not found for employee: " + employeeId);
         }
 
-        LeaveTrackerData tracker = existing.get();
+        LeaveTrackerData tracker = Objects.requireNonNull(existing.get());
         if (request.getSickLeaveAvailable() != null) {
             tracker.setSickLeaveAvailable(request.getSickLeaveAvailable());
         }
@@ -254,7 +267,7 @@ public class LeaveTrackerController {
         @Parameter(description = "Employee ID", required = true, example = "LP-001")
         @PathVariable String employeeId,
         HttpServletRequest request) {
-        if (!isAdmin(request)) {
+        if (!jwtHelper.isAdmin(request)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
 
@@ -263,33 +276,8 @@ public class LeaveTrackerController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Leave tracker not found for employee: " + employeeId);
         }
 
-        leaveTrackerRepository.delete(existing.get());
+        LeaveTrackerData trackerToDelete = Objects.requireNonNull(existing.get());
+        leaveTrackerRepository.delete(trackerToDelete);
         return ResponseEntity.noContent().build();
-    }
-
-    private String getTokenFromRequest(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
-            return null;
-        }
-        return header.substring(7);
-    }
-
-    private String getUsernameFromRequest(HttpServletRequest request) {
-        String token = getTokenFromRequest(request);
-        return token != null ? jwtUtil.getUsernameFromToken(token) : null;
-    }
-
-    private boolean isAdmin(HttpServletRequest request) {
-        String token = getTokenFromRequest(request);
-        if (token == null) {
-            return false;
-        }
-        String role = jwtUtil.getRoleFromToken(token);
-        return role != null && role.equalsIgnoreCase("admin");
-    }
-
-    private boolean equalsIgnoreCase(String a, String b) {
-        return a != null && b != null && a.equalsIgnoreCase(b);
     }
 }

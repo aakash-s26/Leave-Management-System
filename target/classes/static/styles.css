@@ -143,6 +143,26 @@ body.admin-theme .forgot-password a {
     transition: stroke 0.3s ease;
 }
 
+.logo-img {
+    width: 190px;
+    height: 190px;
+    object-fit: contain;
+    border-radius: 24px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.18);
+    background: #ffffff;
+    padding: 12px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.logo-img:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 14px 48px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.22);
+}
+
+body.admin-theme .logo-img {
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.10);
+}
+
 .company-name {
     font-size: 36px;
     font-weight: 600;
@@ -355,6 +375,88 @@ body.admin-theme .forgot-password a {
 
 .cancel-btn:hover {
     opacity: 0.8;
+}
+
+.force-reset-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 6000;
+    padding: 18px;
+}
+
+.force-reset-modal {
+    width: min(460px, 100%);
+    background: #111111;
+    border: 1px solid rgba(244, 210, 118, 0.45);
+    border-radius: 12px;
+    padding: 24px;
+    color: #f5f5f5;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+}
+
+.force-reset-modal h3 {
+    margin: 0 0 12px;
+    color: #f4d276;
+    font-size: 22px;
+}
+
+.force-reset-modal p {
+    margin: 0 0 16px;
+    font-size: 14px;
+    color: #d6d6d6;
+    line-height: 1.5;
+}
+
+.force-reset-field {
+    margin-bottom: 14px;
+}
+
+.force-reset-field label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    margin-bottom: 8px;
+    color: #efefef;
+}
+
+.force-reset-field input {
+    width: 100%;
+    border: 1px solid #4d4d4d;
+    border-radius: 6px;
+    background: #181818;
+    color: #f5f5f5;
+    padding: 10px 12px;
+    font-size: 14px;
+}
+
+.force-reset-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.force-reset-actions button {
+    border: none;
+    border-radius: 6px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.force-reset-cancel {
+    background: #343434;
+    color: #f5f5f5;
+}
+
+.force-reset-submit {
+    background: #f4d276;
+    color: #000000;
 }
 
 /* Responsive - Stack on mobile */

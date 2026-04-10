@@ -4,17 +4,19 @@ import org.kumaran.model.UserAccount;
 import org.kumaran.repository.UserAccountRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
+@Order(2)
 public class DataInitializer implements ApplicationRunner {
     private final UserAccountRepository userRepository;
-    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
 
-    public DataInitializer(UserAccountRepository userRepository) {
+    public DataInitializer(UserAccountRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -30,6 +32,7 @@ public class DataInitializer implements ApplicationRunner {
         UserAccount user = new UserAccount();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
+        user.setRole(role);
         user.setFirstName(firstName);
         user.setLastName(lastName);
         user.setEmailId(username.contains("@") ? username : username + "@leavepal.com");

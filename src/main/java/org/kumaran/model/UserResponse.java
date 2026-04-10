@@ -13,7 +13,7 @@ public class UserResponse {
     @Schema(description = "Relative redirect URL after successful login", example = "/dashboard.html")
     private String redirectUrl;
 
-    @Schema(description = "User role", example = "employee", allowableValues = {"admin", "employee"})
+    @Schema(description = "User role", example = "employee", allowableValues = {"admin", "manager", "employee"})
     private String role;
 
     @Schema(description = "Employee ID (for employees only)", example = "LP-001")
@@ -36,6 +36,18 @@ public class UserResponse {
 
     @Schema(description = "Reporting authority employee ID", example = "LP-001")
     private String reportingEmployeeId;
+
+    @Schema(description = "Reporting manager username", example = "manager@company.com")
+    private String reportingUsername;
+
+    @Schema(description = "Reporting manager email", example = "manager@company.com")
+    private String reportingEmail;
+
+    @Schema(description = "Reporting manager display name", example = "Manager Name")
+    private String reportingName;
+
+    @Schema(description = "Legacy reporting label for compatibility", example = "LP-001")
+    private String reporting;
 
     @Schema(description = "Office location", example = "New York")
     private String location;
@@ -67,6 +79,18 @@ public class UserResponse {
     @Schema(description = "Residential address", example = "123 Main St, New York, NY 10001")
     private String address;
 
+    @Schema(description = "Whether the user has requested a password reset", example = "false")
+    private boolean passwordResetRequested;
+
+    @Schema(description = "Password reset request timestamp", example = "2026-04-10T10:15:30Z")
+    private String passwordResetRequestedAt;
+
+    @Schema(description = "Whether login is blocked until password is changed", example = "false")
+    private boolean forcePasswordChange;
+
+    @Schema(description = "Temporary password issue timestamp", example = "2026-04-10T10:20:00Z")
+    private String temporaryPasswordIssuedAt;
+
     public static UserResponse from(UserAccount user) {
         UserResponse response = new UserResponse();
         response.setUsername(user.getUsername());
@@ -90,6 +114,10 @@ public class UserResponse {
         response.setPersonalEmail(user.getPersonalEmail());
         response.setGender(user.getGender());
         response.setAddress(user.getAddress());
+        response.setPasswordResetRequested(user.isPasswordResetRequested());
+        response.setPasswordResetRequestedAt(user.getPasswordResetRequestedAt());
+        response.setForcePasswordChange(user.isForcePasswordChange());
+        response.setTemporaryPasswordIssuedAt(user.getTemporaryPasswordIssuedAt());
         return response;
     }
 
@@ -181,6 +209,38 @@ public class UserResponse {
         this.reportingEmployeeId = reportingEmployeeId;
     }
 
+    public String getReportingUsername() {
+        return reportingUsername;
+    }
+
+    public void setReportingUsername(String reportingUsername) {
+        this.reportingUsername = reportingUsername;
+    }
+
+    public String getReportingEmail() {
+        return reportingEmail;
+    }
+
+    public void setReportingEmail(String reportingEmail) {
+        this.reportingEmail = reportingEmail;
+    }
+
+    public String getReportingName() {
+        return reportingName;
+    }
+
+    public void setReportingName(String reportingName) {
+        this.reportingName = reportingName;
+    }
+
+    public String getReporting() {
+        return reporting;
+    }
+
+    public void setReporting(String reporting) {
+        this.reporting = reporting;
+    }
+
     public String getLocation() {
         return location;
     }
@@ -259,5 +319,37 @@ public class UserResponse {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public boolean isPasswordResetRequested() {
+        return passwordResetRequested;
+    }
+
+    public void setPasswordResetRequested(boolean passwordResetRequested) {
+        this.passwordResetRequested = passwordResetRequested;
+    }
+
+    public String getPasswordResetRequestedAt() {
+        return passwordResetRequestedAt;
+    }
+
+    public void setPasswordResetRequestedAt(String passwordResetRequestedAt) {
+        this.passwordResetRequestedAt = passwordResetRequestedAt;
+    }
+
+    public boolean isForcePasswordChange() {
+        return forcePasswordChange;
+    }
+
+    public void setForcePasswordChange(boolean forcePasswordChange) {
+        this.forcePasswordChange = forcePasswordChange;
+    }
+
+    public String getTemporaryPasswordIssuedAt() {
+        return temporaryPasswordIssuedAt;
+    }
+
+    public void setTemporaryPasswordIssuedAt(String temporaryPasswordIssuedAt) {
+        this.temporaryPasswordIssuedAt = temporaryPasswordIssuedAt;
     }
 }

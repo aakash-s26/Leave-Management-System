@@ -11,5 +11,4 @@ import java.util.List;
 public interface LeaveTrackerRepository extends JpaRepository<LeaveTrackerData, Long> {
     Optional<LeaveTrackerData> findByEmployeeId(String employeeId);
     List<LeaveTrackerData> findByDepartment(String department);
-    List<LeaveTrackerData> findAll();
 }

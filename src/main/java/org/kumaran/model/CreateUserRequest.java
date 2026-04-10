@@ -4,13 +4,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "Request payload for creating a new user")
 public class CreateUserRequest {
-    @Schema(description = "Username for login (email for employees)", example = "john.doe@company.com", required = true)
+    @Schema(description = "Username for login (email for employees)", example = "john.doe@company.com", requiredMode = Schema.RequiredMode.REQUIRED)
     private String username;
 
-    @Schema(description = "User password", example = "password123", required = true)
+    @Schema(description = "User password", example = "password123", requiredMode = Schema.RequiredMode.REQUIRED)
     private String password;
 
-    @Schema(description = "User role", example = "employee", allowableValues = {"admin", "employee"}, required = true)
+    @Schema(description = "User role", example = "employee", allowableValues = {"admin", "manager", "employee"}, requiredMode = Schema.RequiredMode.REQUIRED)
     private String role;
 
     @Schema(description = "Employee ID (auto-generated if not provided for employees)", example = "LP-001")
@@ -19,7 +19,7 @@ public class CreateUserRequest {
     @Schema(description = "Official email address", example = "john.doe@company.com")
     private String emailId;
 
-    @Schema(description = "First name", example = "John", required = true)
+    @Schema(description = "First name", example = "John", requiredMode = Schema.RequiredMode.REQUIRED)
     private String firstName;
 
     @Schema(description = "Last name", example = "Doe")

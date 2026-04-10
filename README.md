@@ -1,3 +1,28 @@
+# Leave Management System
+
+## Supabase Integration
+
+This project can use Supabase in two ways:
+
+1. PostgreSQL database (already configured through datasource properties)
+2. Supabase Auth for login verification and user provisioning
+
+### Enable Supabase Auth
+
+Set the following environment variables before starting the app:
+
+- `SUPABASE_AUTH_ENABLED=true`
+- `SUPABASE_URL=https://<your-project>.supabase.co`
+- `SUPABASE_ANON_KEY=<your-anon-key>`
+- `SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>`
+
+When enabled:
+
+- Login checks credentials against Supabase Auth (for email-based usernames).
+- Admin-created users are also created in Supabase Auth automatically.
+
+If disabled (default), login falls back to local password verification in this app.
+
 # LeavePal LMS API Documentation
 
 ## Overview

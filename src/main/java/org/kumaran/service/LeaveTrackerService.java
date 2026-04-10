@@ -2,6 +2,8 @@ package org.kumaran.service;
 
 import org.kumaran.model.LeaveTrackerData;
 import org.kumaran.model.UserAccount;
+import org.kumaran.model.LeaveApplication;
+import org.kumaran.repository.LeaveApplicationRepository;
 import org.kumaran.repository.LeaveTrackerRepository;
 import org.kumaran.repository.UserAccountRepository;
 import org.springframework.stereotype.Service;
@@ -15,10 +17,14 @@ import java.util.Optional;
 public class LeaveTrackerService {
     private final LeaveTrackerRepository leaveTrackerRepository;
     private final UserAccountRepository userRepository;
+    private final LeaveApplicationRepository leaveApplicationRepository;
 
-    public LeaveTrackerService(LeaveTrackerRepository leaveTrackerRepository, UserAccountRepository userRepository) {
+    public LeaveTrackerService(LeaveTrackerRepository leaveTrackerRepository,
+                               UserAccountRepository userRepository,
+                               LeaveApplicationRepository leaveApplicationRepository) {
         this.leaveTrackerRepository = leaveTrackerRepository;
         this.userRepository = userRepository;
+        this.leaveApplicationRepository = leaveApplicationRepository;
     }
 
     /**
@@ -104,6 +110,13 @@ public class LeaveTrackerService {
             if (employeeName.isEmpty()) {
                 employeeName = "Unknown Employee";
             }
+            tracker = new LeaveTrackerData(
+                    employee.getEmployeeId(),
+                    employeeName,
+                    employee.getRole(),
+                    employee.getDepartment(),
+                    employee.getJoining()
+            );
         }
 
         tracker.setSickLeaveAvailable(Math.max(0, accrual - sickLeaveBooked));
@@ -117,11 +130,12 @@ public class LeaveTrackerService {
     }
 
     /**
-     * Sync all employees' leave tracker data
+         * Sync all workforce leave tracker data (employees and managers)
      */
     public void syncAllEmployeeLeaveTrackers() {
         List<UserAccount> employees = userRepository.findAll().stream()
-                .filter(user -> user.getRole() != null && user.getRole().equalsIgnoreCase("employee"))
+            .filter(user -> user.getRole() != null &&
+                (user.getRole().equalsIgnoreCase("employee") || user.getRole().equalsIgnoreCase("manager")))
                 .toList();
 
         for (UserAccount employee : employees) {
@@ -135,13 +149,66 @@ public class LeaveTrackerService {
      * Get leave tracker for specific employee
      */
     public LeaveTrackerData getLeaveTrackerForEmployee(String employeeId) {
-        Optional<LeaveTrackerData> tracker = leaveTrackerRepository.findByEmployeeId(employeeId);
-        if (tracker.isEmpty()) {
-            Optional<UserAccount> employee = userRepository.findByEmployeeId(employeeId);
-            if (employee.isPresent()) {
-                return syncLeaveTrackerForEmployee(employee.get(), 0, 0, 0);
+        Optional<UserAccount> employee = userRepository.findByEmployeeId(employeeId);
+        if (employee.isEmpty()) {
+            return null;
+        }
+        return recalculateLeaveTrackerForEmployee(employee.get());
+    }
+
+    public LeaveTrackerData recalculateLeaveTrackerForEmployee(UserAccount employee) {
+        if (employee == null || employee.getEmployeeId() == null) {
+            return null;
+        }
+
+        int accrual = calculateCycleAccrual(employee.getJoining());
+        int sickBooked = 0;
+        int casualBooked = 0;
+        int lopBooked = 0;
+
+        List<LeaveApplication> applications = leaveApplicationRepository
+                .findByEmployeeIdOrUsernameOrEmailIdOrderByCreatedAtDesc(
+                        employee.getEmployeeId(),
+                        employee.getUsername(),
+                        employee.getEmailId()
+                );
+
+        applications.sort((a, b) -> {
+            long aCreatedAt = a.getCreatedAt() == null ? 0L : a.getCreatedAt();
+            long bCreatedAt = b.getCreatedAt() == null ? 0L : b.getCreatedAt();
+            return Long.compare(aCreatedAt, bCreatedAt);
+        });
+
+        for (LeaveApplication app : applications) {
+            if (!"approved".equalsIgnoreCase(app.getStatus())) {
+                continue;
+            }
+
+            int duration = app.getDuration() == null ? 0 : app.getDuration();
+            String leaveType = app.getLeaveType() == null ? "" : app.getLeaveType().trim().toLowerCase();
+
+            if (leaveType.equals("lop")) {
+                lopBooked += duration;
+            } else if (leaveType.equals("sick")) {
+                int available = Math.max(0, accrual - sickBooked);
+                int used = Math.min(duration, available);
+                sickBooked += used;
+                lopBooked += duration - used;
+            } else if (leaveType.equals("casual")) {
+                int available = Math.max(0, accrual - casualBooked);
+                int used = Math.min(duration, available);
+                casualBooked += used;
+                lopBooked += duration - used;
             }
         }
-        return tracker.orElse(null);
+
+        return syncLeaveTrackerForEmployee(employee, sickBooked, casualBooked, lopBooked);
+    }
+
+    public LeaveTrackerData updateLeaveTrackerBookingOnApproval(UserAccount employee) {
+        if (employee == null || employee.getEmployeeId() == null) {
+            return null;
+        }
+        return recalculateLeaveTrackerForEmployee(employee);
     }
 }

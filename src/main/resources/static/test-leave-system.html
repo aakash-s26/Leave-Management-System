@@ -10,75 +10,70 @@
     <div id="test-results"></div>
 
     <script>
-        // Test the leave application system
-        function runTests() {
-            const results = document.getElementById('test-results');
-
-            // Test 1: Initialize leave balances
-            if (!localStorage.getItem('leaveBalances')) {
-                const initialBalances = {
-                    sick: { available: 12, booked: 0 },
-                    casual: { available: 15, booked: 0 },
-                    lop: { booked: 0 }
-                };
-                localStorage.setItem('leaveBalances', JSON.stringify(initialBalances));
-                results.innerHTML += '<p>✅ Leave balances initialized</p>';
-            }
-
-            // Test 2: Create a sample leave application
-            const leaveApplication = {
-                id: Date.now().toString(),
-                employeeId: 'TR-505',
-                employeeName: 'Ronaldo',
-                leaveType: 'sick',
-                fromDate: '2024-01-15',
-                toDate: '2024-01-16',
-                duration: 2,
-                reason: 'Medical checkup',
-                status: 'PENDING',
-                appliedDate: new Date().toISOString().split('T')[0]
+        function getAuthHeaders() {
+            const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+            const headers = {
+                'Content-Type': 'application/json'
             };
-
-            let leaveApplications = JSON.parse(localStorage.getItem('leaveApplications')) || [];
-            leaveApplications.push(leaveApplication);
-            localStorage.setItem('leaveApplications', JSON.stringify(leaveApplications));
-            results.innerHTML += '<p>✅ Leave application saved</p>';
-
-            // Test 3: Update leave balances
-            let leaveBalances = JSON.parse(localStorage.getItem('leaveBalances'));
-            if (leaveApplication.leaveType === 'sick') {
-                leaveBalances.sick.booked += leaveApplication.duration;
-                leaveBalances.sick.available = Math.max(0, leaveBalances.sick.available - leaveApplication.duration);
+            if (user.token) {
+                headers['Authorization'] = `Bearer ${user.token}`;
             }
-            localStorage.setItem('leaveBalances', JSON.stringify(leaveBalances));
-            results.innerHTML += '<p>✅ Leave balances updated</p>';
-
-            // Test 4: Display current data
-            const applications = JSON.parse(localStorage.getItem('leaveApplications')) || [];
-            const balances = JSON.parse(localStorage.getItem('leaveBalances'));
-
-            results.innerHTML += '<h3>Current Leave Applications:</h3>';
-            results.innerHTML += '<pre>' + JSON.stringify(applications, null, 2) + '</pre>';
-
-            results.innerHTML += '<h3>Current Leave Balances:</h3>';
-            results.innerHTML += '<pre>' + JSON.stringify(balances, null, 2) + '</pre>';
-
-            results.innerHTML += '<p>🎉 All tests completed successfully!</p>';
+            return headers;
         }
 
-        // Clear data button
-        function clearData() {
-            localStorage.removeItem('leaveApplications');
-            localStorage.removeItem('leaveBalances');
-            document.getElementById('test-results').innerHTML = '<p>🗑️ Data cleared</p>';
+        async function runTests() {
+            const results = document.getElementById('test-results');
+            results.innerHTML = '';
+            const user = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+
+            if (!user || !user.token) {
+                results.innerHTML = '<p>Sign in first to run API tests.</p>';
+                return;
+            }
+
+            try {
+                const trackerResponse = await fetch(`/api/leave-tracker/${encodeURIComponent(user.employeeId || '')}`, {
+                    headers: getAuthHeaders()
+                });
+                if (trackerResponse.ok) {
+                    const tracker = await trackerResponse.json();
+                    results.innerHTML += '<p>✅ Leave tracker API reachable</p>';
+                    results.innerHTML += '<pre>' + JSON.stringify(tracker, null, 2) + '</pre>';
+                } else {
+                    results.innerHTML += '<p>⚠️ Leave tracker unavailable for this user</p>';
+                }
+            } catch (error) {
+                results.innerHTML += '<p>❌ Leave tracker API test failed</p>';
+            }
+
+            try {
+                const myRequestsResponse = await fetch('/api/leave-applications/my', {
+                    headers: getAuthHeaders()
+                });
+                const requests = myRequestsResponse.ok ? await myRequestsResponse.json() : [];
+                results.innerHTML += '<p>✅ Leave applications API reachable</p>';
+                results.innerHTML += '<pre>' + JSON.stringify(requests.slice(0, 5), null, 2) + '</pre>';
+            } catch (error) {
+                results.innerHTML += '<p>❌ Leave applications API test failed</p>';
+            }
+
+            try {
+                const notificationsResponse = await fetch('/api/notifications/my', {
+                    headers: getAuthHeaders()
+                });
+                const notifications = notificationsResponse.ok ? await notificationsResponse.json() : [];
+                results.innerHTML += '<p>✅ Notifications API reachable</p>';
+                results.innerHTML += '<pre>' + JSON.stringify(notifications.slice(0, 5), null, 2) + '</pre>';
+            } catch (error) {
+                results.innerHTML += '<p>❌ Notifications API test failed</p>';
+            }
+
+            results.innerHTML += '<p>🎉 API-only tests completed.</p>';
         }
 
-        // Run tests on page load
         window.onload = runTests;
     </script>
 
     <button onclick="runTests()">Run Tests Again</button>
-    <button onclick="clearData()">Clear Data</button>
 </body>
-</html></content>
-<parameter name="filePath">c:\Project\prj\test-leave-system.html
+</html>
