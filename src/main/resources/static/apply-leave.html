@@ -123,7 +123,7 @@
 
                             <div class="form-group" id="sickAttachmentGroup" style="display:none;">
                                 <label for="sickAttachment">MEDICAL ATTACHMENT (MANDATORY FOR SICK LEAVE 3+ DAYS)</label>
-                                <input type="file" id="sickAttachment" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx" />
+                                <input type="file" id="sickAttachment" accept=".pdf,application/pdf" />
                             </div>
 
                             <div class="form-buttons">
@@ -376,8 +376,14 @@
                     notify('Medical attachment is mandatory for sick leave of 3 or more days.', 'warning');
                     return;
                 }
-                if (file.size > 5 * 1024 * 1024) {
-                    notify('Attachment size must be 5 MB or less.', 'warning');
+                const isPdf = (file.type && file.type.toLowerCase() === 'application/pdf')
+                    || String(file.name || '').toLowerCase().endsWith('.pdf');
+                if (!isPdf) {
+                    notify('Only PDF attachment is allowed for sick leave.', 'warning');
+                    return;
+                }
+                if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+                    notify('Attachment size must be between 1 byte and 5 MB.', 'warning');
                     return;
                 }
                 try {
