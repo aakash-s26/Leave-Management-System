@@ -1,5 +1,11 @@
 # Leave Management System
 
+## Deployment Guide
+
+For production deployment with Vercel frontend and Supabase backend integration, follow:
+
+- VERCEL_SUPABASE_DEPLOYMENT_CHECKLIST.md
+
 ## Supabase Integration
 
 This project can use Supabase in two ways:

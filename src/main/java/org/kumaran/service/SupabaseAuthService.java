@@ -68,8 +68,11 @@ public class SupabaseAuthService {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             return response.statusCode() >= 200 && response.statusCode() < 300;
-        } catch (IOException | InterruptedException ex) {
+        } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                "Unable to verify credentials with Supabase auth", ex);
+        } catch (IOException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Unable to verify credentials with Supabase auth", ex);
         }
@@ -124,8 +127,11 @@ public class SupabaseAuthService {
             }
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Supabase user provisioning failed: " + message);
-        } catch (IOException | InterruptedException ex) {
+        } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                "Unable to provision user in Supabase auth", ex);
+        } catch (IOException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Unable to provision user in Supabase auth", ex);
         }

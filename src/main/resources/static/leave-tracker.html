@@ -31,7 +31,7 @@
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>
-                    Employee Details
+                    <span id="employeeNavText">Employee Details</span>
                 </a>
                 <a href="leave-tracker.html" id="leaveTrackerLink" class="nav-item active">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -47,7 +47,7 @@
                         <path d="M9 11l3 3L22 4"></path>
                         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
                     </svg>
-                    Leave Requests
+                    <span id="leaveRequestsNavText">Leave Requests</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -74,11 +74,6 @@
                             <h1 class="page-heading">Employee Leave Data</h1>
                             <p class="page-subtitle">Review organization-wide leave balances and booked leave details.</p>
                         </div>
-                        <div class="summary-card small-card" style="margin-bottom: 0;">
-                            <span>TOTAL STAFF</span>
-                            <strong id="leaveDataEmployeeCount">0</strong>
-                            <span class="metric-note">Current cycle</span>
-                        </div>
                     </div>
 
                     <div class="cycle-banner">
@@ -95,14 +90,13 @@
                                     <th>DEPARTMENT</th>
                                     <th>SICK LEAVE AVAILABLE</th>
                                     <th>CASUAL LEAVE AVAILABLE</th>
-                                    <th>LOSS OF PAY AVAILABLE</th>
                                     <th>SICK LEAVE BOOKED</th>
                                     <th>CASUAL LEAVE BOOKED</th>
                                     <th>LOSS OF PAY BOOKED</th>
                                 </tr>
                             </thead>
                             <tbody id="leaveTrackerTableBody">
-                                <tr><td colspan="10" style="text-align:center; color:#666;">Loading employee leave data...</td></tr>
+                                <tr><td colspan="9" style="text-align:center; color:#666;">Loading employee leave data...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -117,22 +111,6 @@
                     </div>
                     <div class="header-right">
                         <button class="apply-leave-btn" onclick="navigateToApplyLeave()">Apply Leave</button>
-                        <div class="notification-icon" id="leaveTrackerNotificationRoot">
-                            <button type="button" class="notification-bell" id="leaveTrackerNotificationToggle" aria-label="Notifications">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                                </svg>
-                                <span class="notification-badge" id="leaveTrackerNotificationBadge">0</span>
-                            </button>
-                            <div class="notification-dropdown hidden" id="leaveTrackerNotificationDropdown">
-                                <div class="notification-dropdown-header">
-                                    <strong>Notifications</strong>
-                                    <button type="button" id="leaveTrackerMarkReadBtn">Mark all read</button>
-                                </div>
-                                <div class="notification-list" id="leaveTrackerNotificationList"></div>
-                            </div>
-                        </div>
                         <div class="user-profile">
                             <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23D4AF37'/%3E%3Ccircle cx='50' cy='35' r='20' fill='%23000'/%3E%3Cpath d='M20 90 Q20 70 50 70 Q80 70 80 90' fill='%23000'/%3E%3C/svg%3E" alt="Profile" class="profile-img">
                             <span class="user-name">Employee</span>
@@ -235,6 +213,9 @@
         </main>
     </div>
 
+    <script src="ui-notifications.js"></script>
+    <script src="env.js"></script>
+    <script src="api-config.js"></script>
     <script>
         let currentSessionUser = null;
         let employeeRefreshTimer = null;
@@ -254,7 +235,9 @@
 
             // Set sidebar links based on role
             const dashboardLink = document.getElementById('dashboardLink');
+            const employeeNavText = document.getElementById('employeeNavText');
             const leaveTrackerText = document.getElementById('leaveTrackerText');
+            const leaveRequestsNavText = document.getElementById('leaveRequestsNavText');
             const managerLeaveRequestsNav = document.getElementById('managerLeaveRequestsNav');
             if (currentUser.role.toLowerCase() === 'admin') {
                 dashboardLink.href = 'admin-dashboard.html';
@@ -263,6 +246,8 @@
                 dashboardLink.href = 'dashboard.html';
                 leaveTrackerText.textContent = 'Leave Tracker';
                 if (currentUser.role.toLowerCase() === 'manager' && managerLeaveRequestsNav) {
+                    if (employeeNavText) employeeNavText.textContent = 'Employees';
+                    if (leaveRequestsNavText) leaveRequestsNavText.textContent = 'Leave Requests';
                     managerLeaveRequestsNav.style.display = 'flex';
                 }
             }
@@ -275,7 +260,6 @@
             } else {
                 document.getElementById('employeeLeaveTrackerSection').style.display = 'block';
                 document.title = 'Leave Tracker - LeavePal';
-                initializeNotificationBell(currentUser);
                 await renderNotificationViews(currentUser);
                 await loadLeaveApplications(currentUser);
                 await loadLeaveBalances(currentUser);
@@ -391,33 +375,7 @@
             });
         }
 
-        function initializeNotificationBell(user) {
-            const root = document.getElementById('leaveTrackerNotificationRoot');
-            const toggle = document.getElementById('leaveTrackerNotificationToggle');
-            const dropdown = document.getElementById('leaveTrackerNotificationDropdown');
-            const markRead = document.getElementById('leaveTrackerMarkReadBtn');
-
-            if (!root || !toggle || !dropdown || !markRead) {
-                return;
-            }
-
-            toggle.addEventListener('click', function(event) {
-                event.stopPropagation();
-                dropdown.classList.toggle('hidden');
-            });
-
-            markRead.addEventListener('click', async function() {
-                await markAllNotificationsRead();
-                await renderNotificationViews(user);
-            });
-
-            document.addEventListener('click', function(event) {
-                if (root.contains(event.target)) {
-                    return;
-                }
-                dropdown.classList.add('hidden');
-            });
-        }
+        const MAX_VISIBLE_NOTIFICATIONS = 3;
 
         async function renderNotificationViews(user) {
             const badge = document.getElementById('leaveTrackerNotificationBadge');
@@ -426,13 +384,14 @@
 
             const notifications = await getNotificationsForUser(user);
             const unread = notifications.filter(item => !item.read).length;
+            const visibleNotifications = notifications.slice(0, MAX_VISIBLE_NOTIFICATIONS);
             if (badge) {
-                badge.textContent = String(unread);
+                badge.textContent = String(Math.min(unread, MAX_VISIBLE_NOTIFICATIONS));
                 badge.style.display = unread > 0 ? 'flex' : 'none';
             }
 
-            const html = notifications.length
-                ? notifications.slice(0, 20).map(item => `
+            const html = visibleNotifications.length
+                ? visibleNotifications.map(item => `
                     <div class="notification-item ${item.read ? '' : 'unread'}">
                         <div class="notification-item-title">${escapeHtml(item.title || 'Notification')}</div>
                         <div class="notification-item-message">${escapeHtml(item.message || '')}</div>
@@ -530,20 +489,30 @@
                 const employees = users.filter(user => {
                     const role = (user.role || '').toLowerCase();
                     return role === 'employee' || role === 'manager';
+                }).sort((a, b) => {
+                    // Sort by employee ID in ascending order
+                    const aEmpId = String(a.employeeId || '').toUpperCase();
+                    const bEmpId = String(b.employeeId || '').toUpperCase();
+                    
+                    // Extract numeric parts for proper sorting (LP-001, LP-002, etc)
+                    const aMatch = aEmpId.match(/^LP-(\d+)$/);
+                    const bMatch = bEmpId.match(/^LP-(\d+)$/);
+                    
+                    if (aMatch && bMatch) {
+                        return parseInt(aMatch[1], 10) - parseInt(bMatch[1], 10);
+                    }
+                    
+                    // Fallback to string comparison if format doesn't match
+                    return aEmpId.localeCompare(bEmpId);
                 });
 
                 const leaveApplications = leaveResponse.ok ? await leaveResponse.json() : [];
-                const countEl = document.getElementById('leaveDataEmployeeCount');
-
-                if (countEl) {
-                    countEl.textContent = employees.length;
-                }
 
                 if (!tbody) {
                     return;
                 }
                 if (employees.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#666;">No workforce records found.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#666;">No workforce records found.</td></tr>';
                     return;
                 }
 
@@ -559,7 +528,6 @@
                             <td>${escapeHtml(employee.department || '—')}</td>
                             <td>${String(stats.sickAvailable).padStart(2, '0')}</td>
                             <td>${String(stats.casualAvailable).padStart(2, '0')}</td>
-                            <td>--</td>
                             <td>${String(stats.sickBooked).padStart(2, '0')}</td>
                             <td>${String(stats.casualBooked).padStart(2, '0')}</td>
                             <td>${String(stats.lopBooked).padStart(2, '0')}</td>
@@ -569,7 +537,7 @@
             } catch (error) {
                 console.error('Error loading admin leave tracker:', error);
                 if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#666;">Unable to load employee leave data from server.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#666;">Unable to load employee leave data from server.</td></tr>';
                 }
             } finally {
                 adminLeaveDataLoading = false;

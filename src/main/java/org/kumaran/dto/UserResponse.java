@@ -92,6 +92,9 @@ public class UserResponse {
     @Schema(description = "Temporary password issue timestamp", example = "2026-04-10T10:20:00Z")
     private String temporaryPasswordIssuedAt;
 
+    @Schema(description = "Response message for operations like profile updates", example = "Profile updated successfully")
+    private String message;
+
     public static UserResponse from(UserAccount user) {
         UserResponse response = new UserResponse();
         response.setUsername(user.getUsername());
@@ -352,6 +355,14 @@ public class UserResponse {
 
     public void setTemporaryPasswordIssuedAt(String temporaryPasswordIssuedAt) {
         this.temporaryPasswordIssuedAt = temporaryPasswordIssuedAt;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
     }
 }
 

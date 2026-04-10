@@ -31,7 +31,7 @@
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>
-                    Employee Details
+                    <span id="employeeNavText">Employee Details</span>
                 </a>
                 <a href="leave-tracker.html" class="nav-item">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -40,14 +40,14 @@
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
-                    Leave Tracker
+                    <span id="leaveTrackerNavText">Leave Tracker</span>
                 </a>
                 <a href="manager-leave-requests.html" id="managerLeaveRequestsNav" class="nav-item" style="display:none;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 11l3 3L22 4"></path>
                         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
                     </svg>
-                    Leave Requests
+                    <span id="leaveRequestsNavText">Leave Requests</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -166,6 +166,8 @@
     </div>
 
     <script src="ui-notifications.js"></script>
+    <script src="env.js"></script>
+    <script src="api-config.js"></script>
     <script>
         let currentSessionUser = null;
         let managerSubordinates = [];
@@ -188,12 +190,21 @@
             initializeNotificationBell(user);
             loadEmployeeDashboard(user);
 
+            const employeeNavText = document.getElementById('employeeNavText');
+            const leaveTrackerNavText = document.getElementById('leaveTrackerNavText');
+            const leaveRequestsNavText = document.getElementById('leaveRequestsNavText');
+
             const bootstrapTasks = [renderNotificationBell(user)];
 
             if (user.role.toLowerCase() === 'manager') {
                 document.getElementById('managerLeaveRequestsNav').style.display = 'flex';
                 document.getElementById('managerLeaveRequestsNav').href = 'manager-leave-requests.html';
+                if (employeeNavText) employeeNavText.textContent = 'Employees';
+                if (leaveTrackerNavText) leaveTrackerNavText.textContent = 'Leave Tracker';
+                if (leaveRequestsNavText) leaveRequestsNavText.textContent = 'Leave Requests';
                 bootstrapTasks.push(refreshManagerTeamMembers());
+            } else {
+                bootstrapTasks.push(refreshEmployeeTeamMembers(user));
             }
 
             await Promise.allSettled(bootstrapTasks);
@@ -218,6 +229,8 @@
                 }
                 if (event.key === 'loggedInUser' && currentSessionUser.role && currentSessionUser.role.toLowerCase() === 'manager') {
                     renderTeamMembersFromSubordinates(managerSubordinates);
+                } else if (event.key === 'loggedInUser' && currentSessionUser.role && currentSessionUser.role.toLowerCase() === 'employee') {
+                    refreshEmployeeTeamMembers(currentSessionUser);
                 }
             });
         });
@@ -298,6 +311,46 @@
             }
         }
 
+        function getUserIdentityKeys(user) {
+            if (!user) {
+                return [];
+            }
+
+            return Array.from(new Set([
+                user.employeeId,
+                user.username,
+                user.emailId,
+                user.email
+            ].filter(Boolean).map(normalizeKey)));
+        }
+
+        function hasAnyIntersection(source, targetSet) {
+            return source.some(value => targetSet.has(value));
+        }
+
+        async function refreshEmployeeTeamMembers(currentUser) {
+            if (!currentUser) {
+                renderTeamMembersFromSubordinates([]);
+                return;
+            }
+
+            const peers = await loadManagerSubordinates();
+
+            const employeeOnlyPeers = peers
+                .filter(user => {
+                    const candidateIdentity = getUserIdentityKeys(user);
+                    const currentUserIdentitySet = new Set(getUserIdentityKeys(currentUser));
+                    return !hasAnyIntersection(candidateIdentity, currentUserIdentitySet);
+                })
+                .sort((a, b) => {
+                    const aEmpId = String(a.employeeId || '').toUpperCase();
+                    const bEmpId = String(b.employeeId || '').toUpperCase();
+                    return aEmpId.localeCompare(bEmpId);
+                });
+
+            renderTeamMembersFromSubordinates(employeeOnlyPeers);
+        }
+
         function escapeHtml(value) {
             return String(value == null ? '' : value)
                 .replace(/&/g, '&amp;')
@@ -355,6 +408,8 @@
                 const tasks = [renderNotificationBell(user)];
                 if (String(user.role || '').toLowerCase() === 'manager') {
                     tasks.push(refreshManagerTeamMembers());
+                } else if (String(user.role || '').toLowerCase() === 'employee') {
+                    tasks.push(refreshEmployeeTeamMembers(user));
                 }
                 await Promise.allSettled(tasks);
             } finally {
@@ -425,6 +480,8 @@
             });
         }
 
+        const MAX_VISIBLE_NOTIFICATIONS = 3;
+
         async function renderNotificationBell(user) {
             const badge = document.getElementById('dashboardNotificationBadge');
             const list = document.getElementById('dashboardNotificationList');
@@ -434,15 +491,16 @@
 
             const notifications = await getNotificationsForUser(user);
             const unreadCount = notifications.filter(item => !item.read).length;
-            badge.textContent = String(unreadCount);
+            const visibleNotifications = notifications.slice(0, MAX_VISIBLE_NOTIFICATIONS);
+            badge.textContent = String(Math.min(unreadCount, MAX_VISIBLE_NOTIFICATIONS));
             badge.style.display = unreadCount > 0 ? 'flex' : 'none';
 
-            if (!notifications.length) {
+            if (!visibleNotifications.length) {
                 list.innerHTML = '<div class="notification-empty">No notifications yet.</div>';
                 return;
             }
 
-            list.innerHTML = notifications.slice(0, 20).map(item => `
+            list.innerHTML = visibleNotifications.map(item => `
                 <div class="notification-item ${item.read ? '' : 'unread'}">
                     <div class="notification-item-title">${escapeHtml(item.title || 'Notification')}</div>
                     <div class="notification-item-message">${escapeHtml(item.message || '')}</div>

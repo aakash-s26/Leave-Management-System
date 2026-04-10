@@ -119,11 +119,15 @@
                         </div>
                         <div class="form-group">
                             <label for="maritalStatusInput">Marital Status</label>
-                            <input type="text" id="maritalStatusInput" required>
+                            <select id="maritalStatusInput" required>
+                                <option value="">Select marital status</option>
+                                <option value="Single">Single</option>
+                                <option value="Married">Married</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="dobInput">Date of Birth</label>
-                            <input type="text" id="dobInput" required>
+                            <input type="date" id="dobInput" required lang="en-GB">
                         </div>
                         <div class="form-group">
                             <label for="personalEmailInput">Personal Email</label>
@@ -131,7 +135,12 @@
                         </div>
                         <div class="form-group">
                             <label for="genderInput">Gender</label>
-                            <input type="text" id="genderInput" required>
+                            <select id="genderInput" required>
+                                <option value="">Select gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Others">Others</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="addressInput">Address</label>
@@ -148,6 +157,8 @@
     </div>
 
     <script src="ui-notifications.js"></script>
+    <script src="env.js"></script>
+    <script src="api-config.js"></script>
     <script>
         function logout() {
             localStorage.clear();
@@ -160,26 +171,79 @@
             }
         }
 
-        function getProfileDefaults() {
-            return {
-                employeeId: 'TR-505',
-                emailId: 'ronaldo@leavepal.com',
-                firstName: 'Ronaldo',
-                lastName: '',
-                department: 'Banking',
-                designation: 'Intern',
-                reporting: 'Ramesh Kumar',
-                location: 'Chennai',
-                joining: '01-Jan-2024',
-                phoneNumber: '+91 98765 43210',
-                nationality: 'Indian',
-                bloodGroup: 'O +ve',
-                maritalStatus: 'Unmarried',
-                dob: '15-May-2001',
-                personalEmail: 'ronaldo.personal@email.com',
-                gender: 'Male',
-                address: 'No. 12, Golden Street, Adyar, Chennai - 600020'
-            };
+        function removeFieldGroup(inputId) {
+            const input = document.getElementById(inputId);
+            if (input && input.parentElement) {
+                input.parentElement.remove();
+            }
+        }
+
+        function setFieldValue(inputId, value) {
+            const input = document.getElementById(inputId);
+            if (input) {
+                input.value = value || '';
+            }
+        }
+
+        function normalizeDateForInput(value) {
+            const raw = String(value || '').trim();
+            if (!raw) {
+                return '';
+            }
+
+            if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+                return raw;
+            }
+
+            const slashMatch = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+            if (slashMatch) {
+                return `${slashMatch[3]}-${slashMatch[2]}-${slashMatch[1]}`;
+            }
+
+            const parsed = new Date(raw);
+            if (!Number.isNaN(parsed.getTime())) {
+                const day = String(parsed.getDate()).padStart(2, '0');
+                const month = String(parsed.getMonth() + 1).padStart(2, '0');
+                const year = parsed.getFullYear();
+                return `${year}-${month}-${day}`;
+            }
+
+            return '';
+        }
+
+        function formatDateForApi(value) {
+            const raw = String(value || '').trim();
+            if (!raw) {
+                return '';
+            }
+
+            const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (isoMatch) {
+                return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+            }
+
+            return raw;
+        }
+
+        function configureEditProfileFormForRole(role) {
+            if (String(role || '').toLowerCase() !== 'admin') {
+                return;
+            }
+
+            [
+                'employeeIdInput',
+                'departmentInput',
+                'reportingEmployeeIdInput',
+                'locationInput',
+                'joiningInput',
+                'nationalityInput',
+                'bloodGroupInput',
+                'maritalStatusInput',
+                'dobInput',
+                'personalEmailInput',
+                'genderInput',
+                'addressInput'
+            ].forEach(removeFieldGroup);
         }
 
         async function loadEditProfile() {
@@ -198,23 +262,23 @@
             }
 
             const profile = await response.json();
-            document.getElementById('employeeIdInput').value = profile.employeeId || profile.username || '';
-            document.getElementById('emailInput').value = profile.emailId || '';
-            document.getElementById('firstNameInput').value = profile.firstName || '';
-            document.getElementById('lastNameInput').value = profile.lastName || '';
-            document.getElementById('departmentInput').value = profile.department || '';
-            document.getElementById('designationInput').value = profile.designation || '';
-            document.getElementById('reportingEmployeeIdInput').value = profile.reportingEmployeeId || '';
-            document.getElementById('locationInput').value = profile.location || '';
-            document.getElementById('joiningInput').value = profile.joining || '';
-            document.getElementById('phoneInput').value = profile.phoneNumber || '';
-            document.getElementById('nationalityInput').value = profile.nationality || '';
-            document.getElementById('bloodGroupInput').value = profile.bloodGroup || '';
-            document.getElementById('maritalStatusInput').value = profile.maritalStatus || '';
-            document.getElementById('dobInput').value = profile.dob || '';
-            document.getElementById('personalEmailInput').value = profile.personalEmail || '';
-            document.getElementById('genderInput').value = profile.gender || '';
-            document.getElementById('addressInput').value = profile.address || '';
+            setFieldValue('employeeIdInput', profile.employeeId || profile.username || '');
+            setFieldValue('emailInput', profile.emailId || '');
+            setFieldValue('firstNameInput', profile.firstName || '');
+            setFieldValue('lastNameInput', profile.lastName || '');
+            setFieldValue('departmentInput', profile.department || '');
+            setFieldValue('designationInput', profile.designation || '');
+            setFieldValue('reportingEmployeeIdInput', profile.reportingEmployeeId || '');
+            setFieldValue('locationInput', profile.location || '');
+            setFieldValue('joiningInput', profile.joining || '');
+            setFieldValue('phoneInput', profile.phoneNumber || '');
+            setFieldValue('nationalityInput', profile.nationality || '');
+            setFieldValue('bloodGroupInput', profile.bloodGroup || '');
+            setFieldValue('maritalStatusInput', profile.maritalStatus || '');
+            setFieldValue('dobInput', normalizeDateForInput(profile.dob || ''));
+            setFieldValue('personalEmailInput', profile.personalEmail || '');
+            setFieldValue('genderInput', profile.gender || '');
+            setFieldValue('addressInput', profile.address || '');
         }
 
         function cancelEdit() {
@@ -227,16 +291,21 @@
         }
 
         async function updateProfile(username) {
+            const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser')) || {};
+            const isAdmin = String(loggedInUser.role || '').toLowerCase() === 'admin';
             const profile = {
-                phoneNumber: document.getElementById('phoneInput').value,
-                nationality: document.getElementById('nationalityInput').value,
-                bloodGroup: document.getElementById('bloodGroupInput').value,
-                maritalStatus: document.getElementById('maritalStatusInput').value,
-                dob: document.getElementById('dobInput').value,
-                personalEmail: document.getElementById('personalEmailInput').value,
-                gender: document.getElementById('genderInput').value,
-                address: document.getElementById('addressInput').value
+                phoneNumber: document.getElementById('phoneInput').value
             };
+
+            if (!isAdmin) {
+                profile.nationality = document.getElementById('nationalityInput').value;
+                profile.bloodGroup = document.getElementById('bloodGroupInput').value;
+                profile.maritalStatus = document.getElementById('maritalStatusInput').value;
+                profile.dob = formatDateForApi(document.getElementById('dobInput').value);
+                profile.personalEmail = document.getElementById('personalEmailInput').value;
+                profile.gender = document.getElementById('genderInput').value;
+                profile.address = document.getElementById('addressInput').value;
+            }
 
             const response = await fetch(`/api/users/${encodeURIComponent(username)}`, {
                 method: 'PUT',
@@ -246,12 +315,23 @@
 
             if (response.ok) {
                 const updatedProfile = await response.json();
-                localStorage.setItem('loggedInUser', JSON.stringify(updatedProfile));
-                if (updatedProfile.role && updatedProfile.role.toLowerCase() === 'admin') {
-                    window.location.href = 'admin-dashboard.html';
-                } else {
-                    window.location.href = 'dashboard.html';
-                }
+                // Preserve the existing token in localStorage
+                const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser')) || {};
+                const preservedToken = loggedInUser.token;
+                const mergedProfile = { ...updatedProfile, token: preservedToken };
+                localStorage.setItem('loggedInUser', JSON.stringify(mergedProfile));
+                
+                // Show success notification
+                notify('Profile updated successfully!', 'success');
+                
+                // Redirect after a short delay to allow user to see notification
+                setTimeout(() => {
+                    if (updatedProfile.role && updatedProfile.role.toLowerCase() === 'admin') {
+                        window.location.href = 'admin-dashboard.html';
+                    } else {
+                        window.location.href = 'dashboard.html';
+                    }
+                }, 1500);
             } else {
                 const message = await response.text();
                 notify(message || 'Unable to save profile.', 'error');
@@ -278,6 +358,8 @@
 
             const fullName = `${loggedInUser.firstName || ''} ${loggedInUser.lastName || ''}`.trim() || 'Employee';
             document.querySelector('.user-name').textContent = fullName;
+
+            configureEditProfileFormForRole(loggedInUser.role);
 
             await loadEditProfile(loggedInUser.username);
 

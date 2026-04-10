@@ -556,7 +556,7 @@ body {
     display: inline-block;
     background-color: #D4AF37;
     color: #000;
-    padding: 12px 24px;
+    padding: 10px 20px;
     border-radius: 4px;
     text-decoration: none;
     font-weight: 600;
@@ -564,7 +564,7 @@ body {
     cursor: pointer;
     border: none;
     transition: all 0.3s ease;
-    margin-top: 20px;
+    margin-top: 0;
 }
 
 .apply-leave-btn:hover {
@@ -1340,6 +1340,35 @@ body {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    align-items: center;
+}
+
+.action-buttons-row .secondary-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    background-color: #f0f0f0;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.action-buttons-row .secondary-btn:hover {
+    background-color: #e5e7eb;
+    opacity: 1;
+}
+
+.action-buttons-row .danger-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    background-color: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecdd3;
+}
+
+.action-buttons-row .danger-btn:hover {
+    background-color: #fecaca;
+    opacity: 1;
 }
 
 .danger-btn {
@@ -1736,7 +1765,7 @@ body {
 
 /* Manager Leave Requests Page */
 .manager-requests-page {
-    padding: 28px 24px 36px;
+    padding: 20px 24px 36px;
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -1839,10 +1868,20 @@ body {
 .manager-table-toolbar {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 14px;
 }
 
-.manager-filter-btn {
+.manager-filter-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b7280;
+}
+
+.manager-filter-select {
     background: #ffffff;
     border: 1px solid #e5e7eb;
     color: #1f2937;
@@ -1866,7 +1905,71 @@ body {
 }
 
 .manager-table-card .employee-table {
-    min-width: 1000px;
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+}
+
+.manager-table-card .employee-table th,
+.manager-table-card .employee-table td {
+    padding: 12px 10px;
+    font-size: 13px;
+    vertical-align: top;
+    word-break: break-word;
+}
+
+.manager-table-card .employee-table th {
+    font-size: 12px;
+}
+
+.manager-table-card .employee-table th:nth-child(1),
+.manager-table-card .employee-table td:nth-child(1) {
+    width: 8%;
+}
+
+.manager-table-card .employee-table th:nth-child(2),
+.manager-table-card .employee-table td:nth-child(2) {
+    width: 12%;
+}
+
+.manager-table-card .employee-table th:nth-child(3),
+.manager-table-card .employee-table td:nth-child(3) {
+    width: 12%;
+}
+
+.manager-table-card .employee-table th:nth-child(4),
+.manager-table-card .employee-table td:nth-child(4) {
+    width: 10%;
+}
+
+.manager-table-card .employee-table th:nth-child(5),
+.manager-table-card .employee-table td:nth-child(5) {
+    width: 11%;
+}
+
+.manager-table-card .employee-table th:nth-child(6),
+.manager-table-card .employee-table td:nth-child(6) {
+    width: 6%;
+}
+
+.manager-table-card .employee-table th:nth-child(7),
+.manager-table-card .employee-table td:nth-child(7) {
+    width: 11%;
+}
+
+.manager-table-card .employee-table th:nth-child(8),
+.manager-table-card .employee-table td:nth-child(8) {
+    width: 10%;
+}
+
+.manager-table-card .employee-table th:nth-child(9),
+.manager-table-card .employee-table td:nth-child(9) {
+    width: 10%;
+}
+
+.manager-table-card .employee-table th:nth-child(10),
+.manager-table-card .employee-table td:nth-child(10) {
+    width: 10%;
 }
 
 .manager-table-card .employee-table tbody tr {
@@ -1924,6 +2027,7 @@ body {
     display: flex;
     gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .approve-btn {
@@ -1931,8 +2035,8 @@ body {
     color: #111827;
     border: none;
     border-radius: 8px;
-    padding: 8px 14px;
-    font-size: 12px;
+    padding: 7px 12px;
+    font-size: 11px;
     font-weight: 700;
     cursor: pointer;
 }
@@ -1942,8 +2046,8 @@ body {
     color: #e11d48;
     border: 1px solid #fecdd3;
     border-radius: 8px;
-    padding: 8px 14px;
-    font-size: 12px;
+    padding: 7px 12px;
+    font-size: 11px;
     font-weight: 700;
     cursor: pointer;
 }
@@ -2055,11 +2159,87 @@ body {
         grid-template-columns: 1fr;
     }
 
+    .manager-table-card {
+        overflow-x: auto;
+    }
+
+    .manager-table-card .employee-table {
+        min-width: 920px;
+        table-layout: auto;
+    }
+
     .manager-table-title {
         font-size: 24px;
     }
 
     .manager-request-modal h3 {
         font-size: 30px;
+    }
+}
+
+@media (max-width: 1280px) {
+    .header {
+        padding: 18px 24px;
+    }
+
+    .header-right {
+        gap: 16px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .dashboard-content,
+    .admin-main,
+    .manager-requests-page {
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .notification-dropdown {
+        width: min(340px, calc(100vw - 32px));
+        right: 0;
+    }
+
+    .employee-table,
+    .manager-request-table,
+    .manager-table-card .employee-table,
+    .admin-leave-data-table {
+        min-width: 760px;
+    }
+}
+
+@media (max-width: 768px) {
+    .header {
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .header-left h2,
+    .manager-requests-topbar h2,
+    .manager-table-title {
+        font-size: clamp(20px, 5vw, 30px);
+        line-height: 1.2;
+    }
+
+    .manager-requests-topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .manager-identity {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .manager-action-row {
+        flex-wrap: wrap;
+    }
+
+    .manager-action-row .approve-btn,
+    .manager-action-row .reject-btn {
+        width: 100%;
     }
 }

@@ -131,6 +131,8 @@
     </div>
 
     <script src="ui-notifications.js"></script>
+    <script src="env.js"></script>
+    <script src="api-config.js"></script>
     <script>
         let managersCache = [];
 
@@ -165,15 +167,28 @@
 
         async function loadNextEmployeeId() {
             try {
-const response = await fetch('/api/users', {
-                headers: getAuthHeaders()
-            });
-                if (!response.ok) {
+                // First try to use the dedicated endpoint
+                const response = await fetch('/api/users/next-employee-id', {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('employeeId').value = data.nextEmployeeId;
+                    return;
+                }
+                
+                // Fallback to fetching all users if endpoint not available
+                const allUsersResponse = await fetch('/api/users', {
+                    headers: getAuthHeaders()
+                });
+                
+                if (!allUsersResponse.ok) {
                     document.getElementById('employeeId').value = 'LP-001';
                     return;
                 }
 
-                const users = await response.json();
+                const users = await allUsersResponse.json();
                 const employeeNumbers = users
                     .filter(user => user.role && (user.role.toLowerCase() === 'employee' || user.role.toLowerCase() === 'manager'))
                     .map(user => user.employeeId)

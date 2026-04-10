@@ -321,18 +321,25 @@ public class AuthController {
         }
 
         UserAccount user = account.get();
-        // Preserve immutable profile values for employees
-        user.setPhoneNumber(request.getPhoneNumber());
-        user.setNationality(request.getNationality());
-        user.setBloodGroup(request.getBloodGroup());
-        user.setMaritalStatus(request.getMaritalStatus());
-        user.setDob(request.getDob());
-        user.setPersonalEmail(request.getPersonalEmail());
-        user.setGender(request.getGender());
-        user.setAddress(request.getAddress());
+        if (user.getRole() != null && user.getRole().equalsIgnoreCase("admin")) {
+            user.setPhoneNumber(request.getPhoneNumber());
+        } else {
+            // Preserve immutable profile values for workforce users
+            user.setPhoneNumber(request.getPhoneNumber());
+            user.setNationality(request.getNationality());
+            user.setBloodGroup(request.getBloodGroup());
+            user.setMaritalStatus(request.getMaritalStatus());
+            user.setDob(request.getDob());
+            user.setPersonalEmail(request.getPersonalEmail());
+            user.setGender(request.getGender());
+            user.setAddress(request.getAddress());
+        }
 
         userRepository.save(user);
-        return ResponseEntity.ok(toUserResponse(user));
+        UserResponse response = toUserResponse(user);
+        // Include success message in response
+        response.setMessage("Profile updated successfully");
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/users")
@@ -484,6 +491,26 @@ public class AuthController {
         return ResponseEntity.ok(users);
     }
 
+    @GetMapping("/users/next-employee-id")
+    @Operation(
+        summary = "Get Next Employee ID",
+        description = "Generate and retrieve the next sequential employee ID (admin only). Returns ID in format LP-XXX."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Next employee ID generated successfully",
+            content = @Content(mediaType = "application/json")),
+        @ApiResponse(responseCode = "403", description = "Only admin users can access this endpoint",
+            content = @Content(mediaType = "text/plain"))
+    })
+    public ResponseEntity<?> getNextEmployeeId(HttpServletRequest request) {
+        if (!jwtHelper.isAdmin(request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin users can access this endpoint");
+        }
+
+        String nextId = generateNextEmployeeId();
+        return ResponseEntity.ok(Map.of("nextEmployeeId", nextId));
+    }
+
     @GetMapping("/users/subordinates")
     @Operation(
         summary = "Get Subordinates",
@@ -508,6 +535,59 @@ public class AuthController {
 
         if (role.equalsIgnoreCase("admin")) {
             return ResponseEntity.ok(employees.stream().map(this::toUserResponse).collect(Collectors.toList()));
+        }
+
+        if (role.equalsIgnoreCase("employee")) {
+            Optional<UserAccount> employeeOpt = userRepository.findByUsername(username);
+            if (employeeOpt.isEmpty()) {
+                return ResponseEntity.ok(List.of());
+            }
+
+            UserAccount employee = employeeOpt.get();
+            String reporting = employee.getReportingEmployeeId();
+            if (reporting == null || reporting.isBlank()) {
+                return ResponseEntity.ok(List.of());
+            }
+
+            List<UserAccount> managers = userRepository.findAll().stream()
+                    .filter(user -> user.getRole() != null && user.getRole().equalsIgnoreCase("manager"))
+                    .toList();
+
+            Optional<UserAccount> managerOpt = managers.stream()
+                    .filter(manager -> {
+                        String managerName = ((manager.getFirstName() == null ? "" : manager.getFirstName()) + " " +
+                                (manager.getLastName() == null ? "" : manager.getLastName())).trim();
+                        return equalsIgnoreCase(reporting, manager.getEmployeeId())
+                                || equalsIgnoreCase(reporting, manager.getUsername())
+                                || (!managerName.isEmpty() && equalsIgnoreCase(reporting, managerName));
+                    })
+                    .findFirst();
+
+            if (managerOpt.isEmpty()) {
+                return ResponseEntity.ok(List.of());
+            }
+
+            UserAccount manager = managerOpt.get();
+            String managerEmpId = manager.getEmployeeId();
+            String managerUsername = manager.getUsername();
+            String managerName = ((manager.getFirstName() == null ? "" : manager.getFirstName()) + " " +
+                    (manager.getLastName() == null ? "" : manager.getLastName())).trim();
+
+            List<UserResponse> peers = employees.stream()
+                    .filter(candidate -> !equalsIgnoreCase(candidate.getUsername(), employee.getUsername()))
+                    .filter(candidate -> {
+                        String candidateReporting = candidate.getReportingEmployeeId();
+                        if (candidateReporting == null || candidateReporting.isBlank()) {
+                            return false;
+                        }
+                        return equalsIgnoreCase(candidateReporting, managerEmpId)
+                                || equalsIgnoreCase(candidateReporting, managerUsername)
+                                || (!managerName.isEmpty() && equalsIgnoreCase(candidateReporting, managerName));
+                    })
+                    .map(this::toUserResponse)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(peers);
         }
 
         if (!role.equalsIgnoreCase("manager")) {

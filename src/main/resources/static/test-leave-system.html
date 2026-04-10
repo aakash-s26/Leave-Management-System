@@ -9,6 +9,8 @@
     <h1>LeavePal Functionality Test</h1>
     <div id="test-results"></div>
 
+    <script src="env.js"></script>
+    <script src="api-config.js"></script>
     <script>
         function getAuthHeaders() {
             const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');

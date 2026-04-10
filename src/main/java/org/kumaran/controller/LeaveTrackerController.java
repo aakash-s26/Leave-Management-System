@@ -189,7 +189,7 @@ public class LeaveTrackerController {
     @GetMapping
     @Operation(
         summary = "Get All Leave Trackers",
-        description = "Retrieve leave tracker data for all employees"
+        description = "Retrieve leave tracker data for all employees sorted by employee ID"
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Leave trackers retrieved successfully",
@@ -200,7 +200,23 @@ public class LeaveTrackerController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        List<LeaveTrackerData> trackers = leaveTrackerRepository.findAll();
+        List<LeaveTrackerData> trackers = leaveTrackerRepository.findAll().stream()
+                .sorted((a, b) -> {
+                    String aEmpId = String.valueOf(a.getEmployeeId() != null ? a.getEmployeeId() : "").toUpperCase();
+                    String bEmpId = String.valueOf(b.getEmployeeId() != null ? b.getEmployeeId() : "").toUpperCase();
+                    
+                    // Extract numeric parts for proper sorting (LP-001, LP-002, etc)
+                    java.util.regex.Matcher aMatcher = java.util.regex.Pattern.compile("^LP-(\\d+)$").matcher(aEmpId);
+                    java.util.regex.Matcher bMatcher = java.util.regex.Pattern.compile("^LP-(\\d+)$").matcher(bEmpId);
+                    
+                    if (aMatcher.matches() && bMatcher.matches()) {
+                        return Integer.parseInt(aMatcher.group(1)) - Integer.parseInt(bMatcher.group(1));
+                    }
+                    
+                    // Fallback to string comparison if format doesn't match
+                    return aEmpId.compareTo(bEmpId);
+                })
+                .toList();
         return ResponseEntity.ok(trackers);
     }
 

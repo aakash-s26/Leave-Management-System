@@ -103,6 +103,14 @@
                                 <input type="date" id="toDate" required onchange="calculateDuration()">
                             </div>
 
+                            <div class="form-group" id="dayTypeGroup" style="display:none;">
+                                <label for="dayType">DAY TYPE</label>
+                                <select id="dayType" onchange="calculateDuration()">
+                                    <option value="full">Full Day</option>
+                                    <option value="half">Half Day</option>
+                                </select>
+                            </div>
+
                             <div class="duration-calculated">
                                 <div class="duration-label">Total Duration Calculated</div>
                                 <div class="duration-value"><span id="durationValue">0</span> Days</div>
@@ -163,6 +171,8 @@
     </div>
 
     <script src="ui-notifications.js"></script>
+    <script src="env.js"></script>
+    <script src="api-config.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
             const currentUser = JSON.parse(localStorage.getItem('loggedInUser')) || null;
@@ -277,24 +287,33 @@
         }
 
         function calculateDuration() {
-            const fromDate = new Date(document.getElementById('fromDate').value);
-            const toDate = new Date(document.getElementById('toDate').value);
+            const fromVal = document.getElementById('fromDate').value;
+            const toVal = document.getElementById('toDate').value;
+            const fromDate = fromVal ? new Date(fromVal) : null;
+            const toDate = toVal ? new Date(toVal) : null;
+            const dayTypeGroup = document.getElementById('dayTypeGroup');
+            const dayTypeSelect = document.getElementById('dayType');
             let days = 0;
 
             if (fromDate && toDate && toDate >= fromDate) {
                 const timeDiff = toDate - fromDate;
                 days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-            } else {
-                days = 0;
             }
 
-            document.getElementById('durationValue').textContent = days;
+            const isSameDay = fromVal && toVal && fromVal === toVal;
+            dayTypeGroup.style.display = isSameDay ? 'block' : 'none';
+            if (!isSameDay) {
+                dayTypeSelect.value = 'full';
+            }
+
+            const effectiveDays = isSameDay && dayTypeSelect.value === 'half' ? 0.5 : days;
+            document.getElementById('durationValue').textContent = effectiveDays;
             toggleSickAttachmentRequirement();
         }
 
         function toggleSickAttachmentRequirement() {
             const leaveType = document.getElementById('leaveType').value;
-            const duration = parseInt(document.getElementById('durationValue').textContent, 10) || 0;
+            const duration = parseFloat(document.getElementById('durationValue').textContent) || 0;
             const group = document.getElementById('sickAttachmentGroup');
             const input = document.getElementById('sickAttachment');
 
@@ -325,9 +344,10 @@
             const fromDate = document.getElementById('fromDate').value;
             const toDate = document.getElementById('toDate').value;
             const reason = document.getElementById('reason').value;
-            const duration = parseInt(document.getElementById('durationValue').textContent, 10) || 0;
+            const duration = parseFloat(document.getElementById('durationValue').textContent) || 0;
             const attachmentInput = document.getElementById('sickAttachment');
-            await syncCurrentUserManagerContext(currentUser);
+
+            // Use manager context already loaded on page init — no extra network call
             const managerContext = getManagerContext(currentUser);
 
             if ((currentUser.role || '').toLowerCase() === 'employee'
@@ -338,15 +358,15 @@
                 return;
             }
 
-            const managerId = managerContext.id;
-            const managerUsername = managerContext.username;
-            const managerEmail = managerContext.email;
-            const managerName = managerContext.name;
-
             if (!leaveType || duration <= 0 || !fromDate || !toDate) {
                 notify('Please select valid leave dates and type before submitting.', 'warning');
                 return;
             }
+
+            const managerId = managerContext.id;
+            const managerUsername = managerContext.username;
+            const managerEmail = managerContext.email;
+            const managerName = managerContext.name;
 
             let sickAttachmentName = '';
             let sickAttachmentData = '';
@@ -370,6 +390,12 @@
                 }
             }
 
+            const applyBtn = document.querySelector('.apply-btn');
+            if (applyBtn) {
+                applyBtn.disabled = true;
+                applyBtn.textContent = 'Applying...';
+            }
+
             const leaveApplication = {
                 reportingManagerId: managerId,
                 reportingManagerUsername: managerUsername,
@@ -389,15 +415,21 @@
                 headers: getAuthHeaders(),
                 body: JSON.stringify(leaveApplication)
             });
+
             if (!response.ok) {
                 const message = await response.text();
                 notify(message || 'Unable to apply leave right now.', 'error');
+                if (applyBtn) {
+                    applyBtn.disabled = false;
+                    applyBtn.textContent = 'Apply';
+                }
                 return;
             }
 
-            await updateLeaveSidebar(currentUser);
-
-            notify(`Leave applied successfully!\nLeave Type: ${leaveType}\nFrom: ${fromDate}\nTo: ${toDate}\nDuration: ${duration} Days\nYour leave was recorded and sent to your manager for review.`, 'success');
+            // Show success immediately — don't block on sidebar refresh
+            notify(`Leave applied successfully! Sent to your manager for review.`, 'success');
+            // Refresh sidebar balances in background
+            updateLeaveSidebar(currentUser);
             setTimeout(() => {
                 window.location.href = 'leave-tracker.html';
             }, 1000);

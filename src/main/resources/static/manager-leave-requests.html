@@ -30,7 +30,7 @@
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>
-                    Employees
+                    <span id="employeeNavText">Employees</span>
                 </a>
                 <a href="leave-tracker.html" class="nav-item">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -39,14 +39,14 @@
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
-                    Leave Tracker
+                    <span id="leaveTrackerNavText">Leave Tracker</span>
                 </a>
                 <a href="manager-leave-requests.html" class="nav-item active">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 11l3 3L22 4"></path>
                         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
                     </svg>
-                    Leave Requests
+                    <span id="leaveRequestsNavText">Leave Requests</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -55,17 +55,19 @@
         </aside>
 
         <main class="main-content">
-            <div class="manager-requests-page">
-                <div class="manager-requests-topbar">
+            <div class="header">
+                <div class="header-left">
                     <h2>Leave Requests</h2>
-                    <div class="manager-identity">
-                        <div class="manager-identity-meta">
-                            <div id="managerTopName" class="manager-identity-name">Manager</div>
-                            <div class="manager-identity-role">Manager</div>
-                        </div>
+                </div>
+                <div class="header-right">
+                    <div class="user-profile">
                         <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23D4AF37'/%3E%3Ccircle cx='50' cy='35' r='20' fill='%23000'/%3E%3Cpath d='M20 90 Q20 70 50 70 Q80 70 80 90' fill='%23000'/%3E%3C/svg%3E" alt="Profile" class="profile-img">
+                        <span id="managerTopName" class="user-name">Manager</span>
                     </div>
                 </div>
+            </div>
+
+            <div class="manager-requests-page">
 
                 <div class="manager-metric-strip">
                     <div class="manager-metric-tile pending">
@@ -84,7 +86,13 @@
 
                 <div class="manager-table-surface">
                     <div class="manager-table-toolbar">
-                        <button type="button" id="managerFilterButton" class="manager-filter-btn">Filter</button>
+                        <label for="managerStatusFilter" class="manager-filter-label">Filter By Status</label>
+                        <select id="managerStatusFilter" class="manager-filter-select">
+                            <option value="ALL">All</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
                     </div>
                     <div class="manager-table-card">
                         <h3 class="manager-table-title">Recent Leave Requests</h3>
@@ -140,6 +148,8 @@
     </div>
 
     <script src="ui-notifications.js"></script>
+    <script src="env.js"></script>
+    <script src="api-config.js"></script>
     <script>
         let currentSessionUser = null;
         let managerSubordinates = [];
@@ -147,6 +157,7 @@
         let activeRequestId = null;
         let managerAutoRefreshTimer = null;
         let managerRefreshInFlight = false;
+        let currentStatusFilter = 'ALL';
 
         document.addEventListener('DOMContentLoaded', async function() {
             const currentUser = JSON.parse(localStorage.getItem('loggedInUser')) || { role: 'guest' };
@@ -172,13 +183,14 @@
             await initializeManagerRequests(currentUser);
             startManagerRequestsAutoRefresh();
 
-            const filterButton = document.getElementById('managerFilterButton');
-            filterButton.addEventListener('click', function() {
-                const onlyPending = this.dataset.onlyPending === 'true';
-                this.dataset.onlyPending = String(!onlyPending);
-                this.textContent = onlyPending ? 'Filter' : 'Filter: Pending';
-                renderManagerRequestsTable(onlyPending ? managerRequests : managerRequests.filter(req => req.status === 'PENDING'));
-            });
+            const filterSelect = document.getElementById('managerStatusFilter');
+            if (filterSelect) {
+                filterSelect.value = currentStatusFilter;
+                filterSelect.addEventListener('change', function() {
+                    currentStatusFilter = String(this.value || 'ALL').toUpperCase();
+                    renderManagerRequestsTable(getFilteredRequests(managerRequests));
+                });
+            }
 
             document.addEventListener('keydown', function(event) {
                 if (event.key === 'Escape') {
@@ -296,7 +308,19 @@
                 });
 
             renderManagerSummaryCards();
-            renderManagerRequestsTable(managerRequests);
+            renderManagerRequestsTable(getFilteredRequests(managerRequests));
+        }
+
+        function getFilteredRequests(requests) {
+            if (!Array.isArray(requests) || !requests.length) {
+                return [];
+            }
+
+            if (currentStatusFilter === 'ALL') {
+                return requests;
+            }
+
+            return requests.filter(req => String(req.status || '').toUpperCase() === currentStatusFilter);
         }
 
         async function refreshManagerRequests() {
@@ -362,12 +386,16 @@
                 return;
             }
 
-            if (!requests.length) {
+            const visibleRequests = [...requests]
+                .sort((a, b) => (b.appliedDate || '').localeCompare(a.appliedDate || ''))
+                .slice(0, 3);
+
+            if (!visibleRequests.length) {
                 tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#666;">No subordinate leave requests found.</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = requests.map(req => {
+            tbody.innerHTML = visibleRequests.map(req => {
                 const disableActions = req.status !== 'PENDING';
                 const status = (req.status || 'PENDING').toUpperCase();
                 const statusClass = status === 'APPROVED' ? 'approved' : (status === 'REJECTED' ? 'rejected' : 'pending');
@@ -478,7 +506,7 @@
                 managerRequests[targetIndex].managerComment = comment || managerRequests[targetIndex].managerComment || '';
                 managerRequests[targetIndex].rejectionReason = status === 'REJECTED' ? comment : '';
                 renderManagerSummaryCards();
-                renderManagerRequestsTable(managerRequests);
+                renderManagerRequestsTable(getFilteredRequests(managerRequests));
             }
 
             const response = await fetch(`/api/leave-applications/${encodeURIComponent(requestId)}/status`, {
@@ -491,7 +519,7 @@
                 if (targetIndex >= 0 && snapshot) {
                     managerRequests[targetIndex] = snapshot;
                     renderManagerSummaryCards();
-                    renderManagerRequestsTable(managerRequests);
+                    renderManagerRequestsTable(getFilteredRequests(managerRequests));
                 }
                 const message = await response.text();
                 if (window.showTopRightNotification) {
