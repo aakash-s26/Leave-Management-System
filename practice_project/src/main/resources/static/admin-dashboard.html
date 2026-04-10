@@ -29,7 +29,7 @@
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>
-                    Employees
+                    Employee Details
                 </a>
                 <a href="leave-tracker.html" class="nav-item">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -38,7 +38,7 @@
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
-                    Leave Tracker Data
+                    Employee Leave Data
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -77,23 +77,14 @@
                         <div>
                             <p class="metric-label">TOTAL STAFF</p>
                             <h2 id="totalStaffCount">0</h2>
-                            <p class="metric-subtext">Based on current employee records</p>
                         </div>
                     </div>
-                    <div class="metric-card admin-metric-card">
-                        <div class="metric-icon-card"><span>📩</span></div>
-                        <div>
-                            <p class="metric-label">PENDING REQUESTS</p>
-                            <h2 id="pendingRequestsCount">0</h2>
-                            <p class="metric-subtext">Leave applications pending review</p>
-                        </div>
-                    </div>
+                    
                     <div class="metric-card admin-metric-card">
                         <div class="metric-icon-card"><span>🏢</span></div>
                         <div>
                             <p class="metric-label">ACTIVE DEPTS</p>
                             <h2 id="activeDeptCount">0</h2>
-                            <p class="metric-subtext">Functional business units</p>
                         </div>
                     </div>
                 </div>
@@ -179,12 +170,25 @@
             window.location.href = 'index.html';
         }
 
+        function getAuthHeaders() {
+            const user = JSON.parse(localStorage.getItem('loggedInUser')) || {};
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (user.token) {
+                headers['Authorization'] = `Bearer ${user.token}`;
+            }
+            return headers;
+        }
+
         function navigateToEditProfile() {
             window.location.href = 'edit-profile.html';
         }
 
         function loadDashboardData() {
-            fetch('/api/users')
+            fetch('/api/users', {
+                headers: getAuthHeaders()
+            })
                 .then(response => response.json())
                 .then(data => {
                     const employees = data.filter(user => user.role && user.role.toLowerCase() === 'employee');

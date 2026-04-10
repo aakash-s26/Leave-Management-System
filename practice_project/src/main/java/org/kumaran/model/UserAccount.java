@@ -26,7 +26,8 @@ public class UserAccount {
     private String lastName;
     private String department;
     private String designation;
-    private String reporting;
+    @Column(name = "reporting")
+    private String reportingEmployeeId;
     private String location;
     private String joining;
     private String phoneNumber;
@@ -118,12 +119,12 @@ public class UserAccount {
         this.designation = designation;
     }
 
-    public String getReporting() {
-        return reporting;
+    public String getReportingEmployeeId() {
+        return reportingEmployeeId;
     }
 
-    public void setReporting(String reporting) {
-        this.reporting = reporting;
+    public void setReportingEmployeeId(String reportingEmployeeId) {
+        this.reportingEmployeeId = reportingEmployeeId;
     }
 
     public String getLocation() {

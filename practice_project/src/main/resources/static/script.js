@@ -1,6 +1,7 @@
-// Check stored preference or default to employee
+// Check stored preference or default to the currently active tab
 document.addEventListener('DOMContentLoaded', function() {
-    const savedRole = localStorage.getItem('userRole') || 'employee';
+    const activeTab = document.querySelector('.tab-btn.active');
+    const savedRole = localStorage.getItem('userRole') || (activeTab ? activeTab.dataset.role : 'employee');
     setTheme(savedRole);
     
     // Tab switching
@@ -38,7 +39,8 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
-            const role = document.querySelector('.tab-btn.active').dataset.role;
+            const activeTab = document.querySelector('.tab-btn.active');
+            const role = activeTab ? activeTab.dataset.role : (localStorage.getItem('userRole') || 'employee');
 
             try {
                 const response = await fetch('/api/auth/login', {
@@ -59,11 +61,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 localStorage.setItem('loggedInUser', JSON.stringify(user));
                 localStorage.setItem('userRole', user.role);
 
-                if (user.role === 'employee') {
-                    window.location.href = 'dashboard.html';
-                } else {
-                    window.location.href = 'admin-dashboard.html';
-                }
+                const redirectUrl = user.redirectUrl || (user.role === 'employee' ? 'dashboard.html' : 'admin-dashboard.html');
+                window.location.href = redirectUrl;
             } catch (error) {
                 console.error(error);
                 alert('Unable to connect to the authentication server.');

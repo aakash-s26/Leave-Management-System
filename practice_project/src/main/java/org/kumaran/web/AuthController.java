@@ -1,10 +1,13 @@
 package org.kumaran.web;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.kumaran.model.CreateUserRequest;
 import org.kumaran.model.LoginRequest;
 import org.kumaran.model.UserAccount;
 import org.kumaran.model.UserResponse;
 import org.kumaran.repository.UserAccountRepository;
+import org.kumaran.security.JwtUtil;
+import org.kumaran.service.LeaveTrackerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -31,10 +34,14 @@ import java.util.stream.Collectors;
 @Tag(name = "Authentication & User Management", description = "APIs for user authentication, profile management, and employee administration")
 public class AuthController {
     private final UserAccountRepository userRepository;
+    private final LeaveTrackerService leaveTrackerService;
+    private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public AuthController(UserAccountRepository userRepository) {
+    public AuthController(UserAccountRepository userRepository, LeaveTrackerService leaveTrackerService, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
+        this.leaveTrackerService = leaveTrackerService;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/auth/login")
@@ -57,11 +64,20 @@ public class AuthController {
         }
 
         UserAccount user = account.get();
-        if (!user.getRole().equalsIgnoreCase(request.getRole()) || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
         }
 
-        return ResponseEntity.ok(UserResponse.from(user));
+        if (request.getRole() != null && !request.getRole().isBlank() &&
+                !user.getRole().equalsIgnoreCase(request.getRole())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
+        }
+
+        String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
+        UserResponse response = UserResponse.from(user);
+        response.setToken(token);
+        response.setRedirectUrl(user.getRole().equalsIgnoreCase("admin") ? "/admin-dashboard.html" : "/dashboard.html");
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/users/{username}")
@@ -79,7 +95,12 @@ public class AuthController {
     })
     public ResponseEntity<?> getUserProfile(
         @Parameter(description = "Username of the user", required = true, example = "admin")
-        @PathVariable String username) {
+        @PathVariable String username,
+        HttpServletRequest request) {
+        if (!isSelfOrAdmin(username, request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
         Optional<UserAccount> account = userRepository.findByUsername(username);
         if (account.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
@@ -103,7 +124,12 @@ public class AuthController {
     public ResponseEntity<?> updateUserProfile(
         @Parameter(description = "Username of the user to update", required = true, example = "employee@company.com")
         @PathVariable String username,
-        @RequestBody UserResponse request) {
+        @RequestBody UserResponse request,
+        HttpServletRequest httpRequest) {
+        if (!isSelfOrAdmin(username, httpRequest)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
         Optional<UserAccount> account = userRepository.findByUsername(username);
         if (account.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
@@ -137,7 +163,12 @@ public class AuthController {
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(mediaType = "text/plain"))
     })
-    public ResponseEntity<?> createUser(@RequestBody CreateUserRequest request) {
+    public ResponseEntity<?> createUser(@RequestBody CreateUserRequest request,
+                                        HttpServletRequest requestContext) {
+        if (!isAdmin(requestContext)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admin users can create accounts");
+        }
+
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already exists");
         }
@@ -159,7 +190,7 @@ public class AuthController {
         user.setLastName(request.getLastName());
         user.setDepartment(request.getDepartment());
         user.setDesignation(request.getDesignation());
-        user.setReporting(request.getReporting());
+        user.setReportingEmployeeId(request.getReportingEmployeeId());
         user.setLocation(request.getLocation());
         user.setJoining(request.getJoining());
         user.setPhoneNumber(request.getPhoneNumber());
@@ -172,6 +203,12 @@ public class AuthController {
         user.setAddress(request.getAddress());
 
         userRepository.save(user);
+
+        // Auto-sync leave tracker for employee
+        if (user.getRole() != null && user.getRole().equalsIgnoreCase("employee")) {
+            leaveTrackerService.syncLeaveTrackerForEmployee(user, 0, 0, 0);
+        }
+
         return ResponseEntity.status(HttpStatus.CREATED).body(UserResponse.from(user));
     }
 
@@ -203,10 +240,47 @@ public class AuthController {
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(mediaType = "text/plain"))
     })
-    public ResponseEntity<List<UserResponse>> getAllUsers() {
+    public ResponseEntity<List<UserResponse>> getAllUsers(HttpServletRequest request) {
+        if (!isAdmin(request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         List<UserResponse> users = userRepository.findAll().stream()
                 .map(UserResponse::from)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(users);
+    }
+
+    private String getTokenFromRequest(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) {
+            return null;
+        }
+        return header.substring(7);
+    }
+
+    private boolean isAdmin(HttpServletRequest request) {
+        String token = getTokenFromRequest(request);
+        if (token == null) {
+            return false;
+        }
+        String role = jwtUtil.getRoleFromToken(token);
+        return role != null && role.equalsIgnoreCase("admin");
+    }
+
+    private boolean isSelfOrAdmin(String username, HttpServletRequest request) {
+        if (isAdmin(request)) {
+            return true;
+        }
+        String token = getTokenFromRequest(request);
+        if (token == null) {
+            return false;
+        }
+        String authUsername = jwtUtil.getUsernameFromToken(token);
+        return authUsername != null && authUsername.equalsIgnoreCase(username);
+    }
+
+    private boolean equalsIgnoreCase(String a, String b) {
+        return a != null && b != null && a.equalsIgnoreCase(b);
     }
 }

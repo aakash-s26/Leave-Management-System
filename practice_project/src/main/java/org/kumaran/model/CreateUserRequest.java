@@ -31,8 +31,8 @@ public class CreateUserRequest {
     @Schema(description = "Job designation", example = "Software Engineer")
     private String designation;
 
-    @Schema(description = "Reporting manager name", example = "Jane Smith")
-    private String reporting;
+    @Schema(description = "Reporting authority employee ID", example = "LP-001")
+    private String reportingEmployeeId;
 
     @Schema(description = "Office location", example = "New York")
     private String location;
@@ -137,12 +137,12 @@ public class CreateUserRequest {
         this.designation = designation;
     }
 
-    public String getReporting() {
-        return reporting;
+    public String getReportingEmployeeId() {
+        return reportingEmployeeId;
     }
 
-    public void setReporting(String reporting) {
-        this.reporting = reporting;
+    public void setReportingEmployeeId(String reportingEmployeeId) {
+        this.reportingEmployeeId = reportingEmployeeId;
     }
 
     public String getLocation() {

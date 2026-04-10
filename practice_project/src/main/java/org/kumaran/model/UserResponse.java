@@ -7,6 +7,12 @@ public class UserResponse {
     @Schema(description = "Username/login identifier", example = "john.doe@company.com")
     private String username;
 
+    @Schema(description = "JWT token for authenticated requests", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+    private String token;
+
+    @Schema(description = "Relative redirect URL after successful login", example = "/dashboard.html")
+    private String redirectUrl;
+
     @Schema(description = "User role", example = "employee", allowableValues = {"admin", "employee"})
     private String role;
 
@@ -28,8 +34,8 @@ public class UserResponse {
     @Schema(description = "Job designation", example = "Software Engineer")
     private String designation;
 
-    @Schema(description = "Reporting manager name", example = "Jane Smith")
-    private String reporting;
+    @Schema(description = "Reporting authority employee ID", example = "LP-001")
+    private String reportingEmployeeId;
 
     @Schema(description = "Office location", example = "New York")
     private String location;
@@ -66,12 +72,14 @@ public class UserResponse {
         response.setUsername(user.getUsername());
         response.setRole(user.getRole());
         response.setEmployeeId(user.getEmployeeId());
+        response.setToken(null);
+        response.setRedirectUrl(null);
         response.setEmailId(user.getEmailId());
         response.setFirstName(user.getFirstName());
         response.setLastName(user.getLastName());
         response.setDepartment(user.getDepartment());
         response.setDesignation(user.getDesignation());
-        response.setReporting(user.getReporting());
+        response.setReportingEmployeeId(user.getReportingEmployeeId());
         response.setLocation(user.getLocation());
         response.setJoining(user.getJoining());
         response.setPhoneNumber(user.getPhoneNumber());
@@ -91,6 +99,22 @@ public class UserResponse {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
+    }
+
+    public String getRedirectUrl() {
+        return redirectUrl;
+    }
+
+    public void setRedirectUrl(String redirectUrl) {
+        this.redirectUrl = redirectUrl;
     }
 
     public String getRole() {
@@ -149,12 +173,12 @@ public class UserResponse {
         this.designation = designation;
     }
 
-    public String getReporting() {
-        return reporting;
+    public String getReportingEmployeeId() {
+        return reportingEmployeeId;
     }
 
-    public void setReporting(String reporting) {
-        this.reporting = reporting;
+    public void setReportingEmployeeId(String reportingEmployeeId) {
+        this.reportingEmployeeId = reportingEmployeeId;
     }
 
     public String getLocation() {
