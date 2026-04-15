@@ -18,7 +18,7 @@
                 <span class="logo-text">LeavePal</span>
             </div>
             <nav class="sidebar-nav">
-                <a href="dashboard.html" class="nav-item">
+                <a href="#" id="dashboardLink" class="nav-item">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
@@ -246,14 +246,17 @@
             ].forEach(removeFieldGroup);
         }
 
-        async function loadEditProfile() {
-            const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser')) || {};
-            if (!loggedInUser.username) {
+        function getProfileIdentifier(user) {
+            return user.username || user.employeeId || user.emailId || user.email || '';
+        }
+
+        async function loadEditProfile(profileIdentifier) {
+            if (!profileIdentifier) {
                 window.location.href = 'index.html';
                 return;
             }
 
-            const response = await fetch(`/api/users/${encodeURIComponent(loggedInUser.username)}`, {
+            const response = await fetch(`/api/users/${encodeURIComponent(profileIdentifier)}`, {
                 headers: getAuthHeaders()
             });
             if (!response.ok) {
@@ -290,7 +293,7 @@
             }
         }
 
-        async function updateProfile(username) {
+        async function updateProfile(profileIdentifier) {
             const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser')) || {};
             const isAdmin = String(loggedInUser.role || '').toLowerCase() === 'admin';
             const profile = {
@@ -307,7 +310,7 @@
                 profile.address = document.getElementById('addressInput').value;
             }
 
-            const response = await fetch(`/api/users/${encodeURIComponent(username)}`, {
+            const response = await fetch(`/api/users/${encodeURIComponent(profileIdentifier)}`, {
                 method: 'PUT',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(profile)
@@ -351,7 +354,8 @@
 
         document.addEventListener('DOMContentLoaded', async function() {
             const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser')) || {};
-            if (!loggedInUser.username) {
+            const profileIdentifier = getProfileIdentifier(loggedInUser);
+            if (!profileIdentifier) {
                 window.location.href = 'index.html';
                 return;
             }
@@ -359,14 +363,21 @@
             const fullName = `${loggedInUser.firstName || ''} ${loggedInUser.lastName || ''}`.trim() || 'Employee';
             document.querySelector('.user-name').textContent = fullName;
 
+            const dashboardLink = document.getElementById('dashboardLink');
+            if (dashboardLink) {
+                dashboardLink.href = String(loggedInUser.role || '').toLowerCase() === 'admin'
+                    ? 'admin-dashboard.html'
+                    : 'dashboard.html';
+            }
+
             configureEditProfileFormForRole(loggedInUser.role);
 
-            await loadEditProfile(loggedInUser.username);
+            await loadEditProfile(profileIdentifier);
 
             const editProfileForm = document.getElementById('editProfileForm');
             editProfileForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                await updateProfile(loggedInUser.username);
+                await updateProfile(profileIdentifier);
             });
         });
     </script>
