@@ -1,8 +1,0 @@
-org\kumaran\repository\UserAccountRepository.class
-org\kumaran\bootstrap\DataInitializer.class
-org\kumaran\Main.class
-org\kumaran\model\UserAccount.class
-org\kumaran\model\UserResponse.class
-org\kumaran\model\CreateUserRequest.class
-org\kumaran\model\LoginRequest.class
-org\kumaran\config\OpenApiConfig.class
